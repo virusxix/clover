@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { GlassCard } from "@/components/ui/GlassCard";
+import { formatMMK } from "@/lib/currency";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 
