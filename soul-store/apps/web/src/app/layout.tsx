@@ -1,0 +1,35 @@
+import type { Metadata } from "next";
+import { Suspense } from "react";
+import { Inter } from "next/font/google";
+import "./globals.css";
+import { AuthProvider } from "@/lib/auth-context";
+import { Header } from "@/components/layout/Header";
+import { Footer } from "@/components/layout/Footer";
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+});
+
+export const metadata: Metadata = {
+  title: "THE CLOVER | Premium Sportswear",
+  description: "Premium gym sportswear and athleisure — performance gear for training and everyday movement.",
+  icons: { icon: "/assets/logo-icon.png", apple: "/assets/logo-icon.png" },
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body className={`${inter.variable} font-sans min-h-screen flex flex-col`}>
+        <AuthProvider>
+          <Suspense fallback={<div className="nav-spacer" aria-hidden />}>
+            <Header />
+          </Suspense>
+          <main className="flex-1 w-full min-w-0 overflow-x-hidden">{children}</main>
+          <Footer />
+        </AuthProvider>
+      </body>
+    </html>
+  );
+}

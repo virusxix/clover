@@ -1,0 +1,297 @@
+/**
+ * Storefront navigation — single source of truth (matches About page).
+ * Load after site.css + vegety.css on every storefront page.
+ */
+
+.theme-vegety {
+  --nav-float-h: 68px;
+  --nav-logo-icon: 44px;
+  --nav-link-size: 15px;
+  --nav-link-pad-y: 8px;
+  --nav-link-pad-x: 16px;
+  --nav-icon-size: 40px;
+}
+
+#site-header {
+  min-height: calc(1rem + var(--nav-float-h) + 0.5rem);
+}
+
+.theme-vegety .veg-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  padding: 1rem var(--page-gutter) 0.5rem;
+  background: transparent;
+  border: none;
+  pointer-events: none;
+}
+
+.theme-vegety .veg-header__inner {
+  pointer-events: auto;
+  width: 100%;
+  max-width: var(--content-max);
+  margin-inline: auto;
+  box-sizing: border-box;
+  height: var(--nav-float-h);
+  min-height: var(--nav-float-h);
+  max-height: var(--nav-float-h);
+  padding: 0 12px 0 16px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px 20px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  border-radius: 100px;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow: var(--shadow-grey-md);
+  transition: box-shadow 0.35s var(--ease);
+}
+
+.theme-vegety .veg-header.is-scrolled .veg-header__inner {
+  box-shadow: var(--shadow-grey-lg);
+}
+
+.theme-vegety .veg-header .veg-logo {
+  grid-column: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.theme-vegety .veg-header .veg-logo__icon {
+  width: var(--nav-logo-icon);
+  height: var(--nav-logo-icon);
+  flex-shrink: 0;
+  display: block;
+  object-fit: contain;
+  background: transparent !important;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  border-radius: 0;
+}
+
+.theme-vegety .veg-header .veg-logo__text {
+  font-family: var(--font-brand);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  line-height: 1.2;
+  color: var(--dark);
+  white-space: nowrap;
+}
+
+.theme-vegety .veg-header .veg-nav {
+  grid-column: 2;
+  justify-self: center;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.theme-vegety .veg-header .veg-nav a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  height: 40px;
+  min-height: 40px;
+  max-height: 40px;
+  padding: var(--nav-link-pad-y) var(--nav-link-pad-x);
+  font-family: var(--font);
+  font-size: var(--nav-link-size);
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-muted);
+  border-radius: 100px;
+  white-space: nowrap;
+  transition: color 0.2s, background 0.2s;
+}
+
+.theme-vegety .veg-header .veg-nav a:hover {
+  color: var(--accent-dark);
+  background: rgba(110, 193, 228, 0.08);
+}
+
+.theme-vegety .veg-header .veg-nav a.is-active {
+  color: var(--accent-dark);
+  font-weight: 600;
+  background: var(--accent-pale);
+}
+
+.theme-vegety .veg-header__actions {
+  grid-column: 3;
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.theme-vegety .veg-header__menu {
+  grid-column: 3;
+  justify-self: end;
+  width: var(--nav-icon-size);
+  height: var(--nav-icon-size);
+  min-width: var(--nav-icon-size);
+  min-height: var(--nav-icon-size);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: white;
+}
+
+.theme-vegety .veg-header .veg-icon-btn {
+  width: var(--nav-icon-size);
+  height: var(--nav-icon-size);
+  min-width: var(--nav-icon-size);
+  min-height: var(--nav-icon-size);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: white;
+  color: var(--text);
+  position: relative;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.theme-vegety .veg-header .veg-icon-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.theme-vegety .veg-header .veg-icon-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent-dark);
+}
+
+.theme-vegety .veg-header .btn.btn--dark.btn--sm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  height: 40px;
+  min-height: 40px;
+  max-height: 40px;
+  padding: 0 16px;
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  line-height: 1.2;
+  border-radius: 100px;
+  flex-shrink: 0;
+}
+
+@media (min-width: 900px) {
+  .theme-vegety .veg-header .veg-nav {
+    display: flex;
+  }
+
+  .theme-vegety .veg-header__menu {
+    display: none !important;
+  }
+}
+
+@media (max-width: 899px) {
+  .theme-vegety {
+    --nav-float-h: 60px;
+    --nav-logo-icon: 40px;
+  }
+
+  .theme-vegety .veg-header {
+    padding: 0.75rem var(--page-gutter) 0.35rem;
+  }
+
+  .theme-vegety .veg-header__inner {
+    border-radius: 24px;
+    padding: 0 8px 0 12px;
+    grid-template-columns: 1fr auto auto;
+    grid-template-rows: auto auto;
+  }
+
+  .theme-vegety .veg-header .veg-logo {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .theme-vegety .veg-header .veg-logo__text {
+    font-size: 13px;
+    letter-spacing: 0.1em;
+  }
+
+  .theme-vegety .veg-header__menu {
+    grid-column: 2;
+    grid-row: 1;
+    display: flex !important;
+  }
+
+  .theme-vegety .veg-header__actions {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .theme-vegety .veg-header__actions .btn--dark {
+    display: none;
+  }
+
+  .theme-vegety .veg-nav:not(.is-open) {
+    display: none;
+  }
+
+  .theme-vegety .veg-nav.is-open {
+    display: flex;
+    position: fixed;
+    top: calc(0.75rem + var(--nav-float-h) + 0.65rem);
+    left: 0.75rem;
+    right: 0.75rem;
+    max-width: 420px;
+    margin-inline: auto;
+    flex-direction: column;
+    align-items: stretch;
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(20px);
+    padding: 1rem;
+    border-radius: 24px;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-grey-lg);
+    z-index: 200;
+    pointer-events: auto;
+  }
+
+  .theme-vegety .veg-nav.is-open a {
+    height: auto;
+    min-height: 44px;
+    max-height: none;
+    padding: 0.75rem 0.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .theme-vegety .veg-nav.is-open a:last-child {
+    border-bottom: none;
+  }
+
+  .theme-vegety .veg-nav.is-open a.is-active {
+    background: var(--accent-pale);
+    border-radius: 12px;
+  }
+}
+
+/* Footer logo — do not inherit header nav sizes */
+.theme-vegety .veg-footer .veg-logo__icon {
+  width: 46px;
+  height: 46px;
+}

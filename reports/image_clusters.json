@@ -1,0 +1,467 @@
+{
+  "total_images": 47,
+  "failed_load": [],
+  "groups": [
+    {
+      "id": 1,
+      "name": "Visually Related Product Set",
+      "count": 5,
+      "images": [
+        "photo_6111774033587147107_y.jpg",
+        "photo_6111774033587147108_y.jpg",
+        "photo_6111774033587147110_y.jpg",
+        "photo_6111774033587147111_y.jpg",
+        "photo_6111774033587147112_y.jpg"
+      ],
+      "representative": "photo_6111774033587147111_y.jpg",
+      "similarity_pct": 59.6,
+      "reason": "Clustered by color histogram, structure, and composition similarity.",
+      "flags": {
+        "exact_or_near_duplicates": [],
+        "blurry": [],
+        "low_quality": [],
+        "screenshots": []
+      }
+    },
+    {
+      "id": 2,
+      "name": "Bright Studio Product Photography",
+      "count": 4,
+      "images": [
+        "logo-full.png",
+        "logo-icon.png",
+        "photo_6111774033587147086_x.jpg",
+        "photo_6111774033587147087_y.jpg"
+      ],
+      "representative": "logo-full.png",
+      "similarity_pct": 64.7,
+      "reason": "High-key white background product shots with similar lighting and composition.",
+      "flags": {
+        "exact_or_near_duplicates": [
+          "logo-full.png \u2194 photo_6111774033587147087_y.jpg (98.0%)",
+          "logo-icon.png \u2194 photo_6111774033587147086_x.jpg (98.0%)"
+        ],
+        "blurry": [
+          "logo-full.png",
+          "photo_6111774033587147087_y.jpg"
+        ],
+        "low_quality": [
+          "logo-full.png",
+          "photo_6111774033587147087_y.jpg"
+        ],
+        "screenshots": [
+          "logo-full.png",
+          "logo-icon.png",
+          "photo_6111774033587147086_x.jpg",
+          "photo_6111774033587147087_y.jpg"
+        ]
+      }
+    },
+    {
+      "id": 3,
+      "name": "Near-Duplicates",
+      "count": 4,
+      "images": [
+        "photo_6111774033587147122_y.jpg",
+        "photo_6111774033587147127_y.jpg",
+        "product-stack-hero.png",
+        "product-stack-lifestyle.png"
+      ],
+      "representative": "photo_6111774033587147122_y.jpg",
+      "similarity_pct": 95.0,
+      "reason": "Perceptual hash and pixel structure indicate same or nearly identical shots.",
+      "flags": {
+        "exact_or_near_duplicates": [
+          "photo_6111774033587147122_y.jpg \u2194 photo_6111774033587147127_y.jpg (98.0%)",
+          "photo_6111774033587147122_y.jpg \u2194 product-stack-hero.png (98.0%)",
+          "photo_6111774033587147127_y.jpg \u2194 product-stack-hero.png (98.0%)"
+        ],
+        "blurry": [],
+        "low_quality": [],
+        "screenshots": []
+      }
+    },
+    {
+      "id": 4,
+      "name": "Visually Related Product Set",
+      "count": 3,
+      "images": [
+        "photo_6111774033587147116_y.jpg",
+        "photo_6111774033587147117_y.jpg",
+        "photo_6111774033587147118_y.jpg"
+      ],
+      "representative": "photo_6111774033587147117_y.jpg",
+      "similarity_pct": 60.3,
+      "reason": "Clustered by color histogram, structure, and composition similarity.",
+      "flags": {
+        "exact_or_near_duplicates": [],
+        "blurry": [
+          "photo_6111774033587147118_y.jpg"
+        ],
+        "low_quality": [],
+        "screenshots": []
+      }
+    },
+    {
+      "id": 5,
+      "name": "Dark Background Product Shots",
+      "count": 3,
+      "images": [
+        "photo_6111774033587147124_y.jpg",
+        "product-trio-flat.png",
+        "product-zip-detail.png"
+      ],
+      "representative": "product-trio-flat.png",
+      "similarity_pct": 94.0,
+      "reason": "Low-key backgrounds with apparel focus and matched color grading.",
+      "flags": {
+        "exact_or_near_duplicates": [
+          "product-trio-flat.png \u2194 product-zip-detail.png (98.0%)"
+        ],
+        "blurry": [],
+        "low_quality": [],
+        "screenshots": []
+      }
+    },
+    {
+      "id": 6,
+      "name": "Lifestyle / On-Body Product Views",
+      "count": 3,
+      "images": [
+        "photo_6111774033587147097_y.jpg",
+        "photo_6111774033587147099_y.jpg",
+        "photo_6111774033587147101_y.jpg"
+      ],
+      "representative": "photo_6111774033587147097_y.jpg",
+      "similarity_pct": 47.5,
+      "reason": "Similar aspect ratios and detail-focused apparel presentation.",
+      "flags": {
+        "exact_or_near_duplicates": [],
+        "blurry": [],
+        "low_quality": [],
+        "screenshots": []
+      }
+    },
+    {
+      "id": 7,
+      "name": "Bright Studio Product Photography",
+      "count": 2,
+      "images": [
+        "photo_6111774033587147103_y.jpg",
+        "photo_6111774033587147104_y.jpg"
+      ],
+      "representative": "photo_6111774033587147103_y.jpg",
+      "similarity_pct": 51.2,
+      "reason": "High-key white background product shots with similar lighting and composition.",
+      "flags": {
+        "exact_or_near_duplicates": [],
+        "blurry": [
+          "photo_6111774033587147103_y.jpg"
+        ],
+        "low_quality": [],
+        "screenshots": []
+      }
+    },
+    {
+      "id": 8,
+      "name": "Near-Duplicates",
+      "count": 2,
+      "images": [
+        "photo_6111774033587147125_y.jpg",
+        "product-trio-fold.png"
+      ],
+      "representative": "photo_6111774033587147125_y.jpg",
+      "similarity_pct": 98.0,
+      "reason": "Perceptual hash and pixel structure indicate same or nearly identical shots.",
+      "flags": {
+        "exact_or_near_duplicates": [
+          "photo_6111774033587147125_y.jpg \u2194 product-trio-fold.png (98.0%)"
+        ],
+        "blurry": [],
+        "low_quality": [],
+        "screenshots": []
+      }
+    },
+    {
+      "id": 9,
+      "name": "Near-Duplicates",
+      "count": 2,
+      "images": [
+        "photo_6111774033587147126_y.jpg",
+        "product-stack-four.png"
+      ],
+      "representative": "photo_6111774033587147126_y.jpg",
+      "similarity_pct": 98.0,
+      "reason": "Perceptual hash and pixel structure indicate same or nearly identical shots.",
+      "flags": {
+        "exact_or_near_duplicates": [
+          "photo_6111774033587147126_y.jpg \u2194 product-stack-four.png (98.0%)"
+        ],
+        "blurry": [],
+        "low_quality": [],
+        "screenshots": []
+      }
+    },
+    {
+      "id": 10,
+      "name": "Visually Related Product Set",
+      "count": 12,
+      "images": [
+        "hero-image.png",
+        "photo_6111774033587147088_y.jpg",
+        "photo_6111774033587147094_y.jpg",
+        "photo_6111774033587147095_y.jpg",
+        "photo_6111774033587147096_y.jpg",
+        "photo_6111774033587147098_y.jpg",
+        "photo_6111774033587147100_y.jpg",
+        "photo_6111774033587147109_y.jpg",
+        "photo_6111774033587147113_y.jpg",
+        "photo_6111774033587147114_y.jpg",
+        "photo_6111774033587147119_y.jpg",
+        "photo_6111774033587147123_y (1).jpg"
+      ],
+      "representative": "photo_6111774033587147096_y.jpg",
+      "similarity_pct": 27.9,
+      "reason": "Clustered by color histogram, structure, and composition similarity.",
+      "flags": {
+        "exact_or_near_duplicates": [],
+        "blurry": [],
+        "low_quality": [],
+        "screenshots": []
+      }
+    },
+    {
+      "id": 12,
+      "name": "Low Quality / Blurry",
+      "count": 1,
+      "images": [
+        "photo_6111774033587147089_y.jpg"
+      ],
+      "representative": "photo_6111774033587147089_y.jpg",
+      "similarity_pct": 100.0,
+      "reason": "Below sharpness or resolution thresholds.",
+      "flags": {
+        "exact_or_near_duplicates": [],
+        "blurry": [
+          "photo_6111774033587147089_y.jpg"
+        ],
+        "low_quality": [],
+        "screenshots": []
+      }
+    },
+    {
+      "id": 13,
+      "name": "Screenshots & UI Captures",
+      "count": 1,
+      "images": [
+        "photo_6111774033587147090_y.jpg"
+      ],
+      "representative": "photo_6111774033587147090_y.jpg",
+      "similarity_pct": 100.0,
+      "reason": "Screen capture characteristics (aspect ratio / flat UI regions).",
+      "flags": {
+        "exact_or_near_duplicates": [],
+        "blurry": [
+          "photo_6111774033587147090_y.jpg"
+        ],
+        "low_quality": [
+          "photo_6111774033587147090_y.jpg"
+        ],
+        "screenshots": [
+          "photo_6111774033587147090_y.jpg"
+        ]
+      }
+    },
+    {
+      "id": 14,
+      "name": "Screenshots & UI Captures",
+      "count": 1,
+      "images": [
+        "photo_6111774033587147091_y.jpg"
+      ],
+      "representative": "photo_6111774033587147091_y.jpg",
+      "similarity_pct": 100.0,
+      "reason": "Screen capture characteristics (aspect ratio / flat UI regions).",
+      "flags": {
+        "exact_or_near_duplicates": [],
+        "blurry": [
+          "photo_6111774033587147091_y.jpg"
+        ],
+        "low_quality": [
+          "photo_6111774033587147091_y.jpg"
+        ],
+        "screenshots": [
+          "photo_6111774033587147091_y.jpg"
+        ]
+      }
+    },
+    {
+      "id": 15,
+      "name": "Low Quality / Blurry",
+      "count": 1,
+      "images": [
+        "photo_6111774033587147092_y.jpg"
+      ],
+      "representative": "photo_6111774033587147092_y.jpg",
+      "similarity_pct": 100.0,
+      "reason": "Below sharpness or resolution thresholds.",
+      "flags": {
+        "exact_or_near_duplicates": [],
+        "blurry": [
+          "photo_6111774033587147092_y.jpg"
+        ],
+        "low_quality": [],
+        "screenshots": []
+      }
+    },
+    {
+      "id": 16,
+      "name": "Screenshots & UI Captures",
+      "count": 1,
+      "images": [
+        "photo_6111774033587147093_y.jpg"
+      ],
+      "representative": "photo_6111774033587147093_y.jpg",
+      "similarity_pct": 100.0,
+      "reason": "Screen capture characteristics (aspect ratio / flat UI regions).",
+      "flags": {
+        "exact_or_near_duplicates": [],
+        "blurry": [
+          "photo_6111774033587147093_y.jpg"
+        ],
+        "low_quality": [],
+        "screenshots": [
+          "photo_6111774033587147093_y.jpg"
+        ]
+      }
+    },
+    {
+      "id": 23,
+      "name": "Low Quality / Blurry",
+      "count": 1,
+      "images": [
+        "photo_6111774033587147102_y.jpg"
+      ],
+      "representative": "photo_6111774033587147102_y.jpg",
+      "similarity_pct": 100.0,
+      "reason": "Below sharpness or resolution thresholds.",
+      "flags": {
+        "exact_or_near_duplicates": [],
+        "blurry": [
+          "photo_6111774033587147102_y.jpg"
+        ],
+        "low_quality": [],
+        "screenshots": []
+      }
+    },
+    {
+      "id": 24,
+      "name": "Screenshots & UI Captures",
+      "count": 1,
+      "images": [
+        "photo_6111774033587147106_y.jpg"
+      ],
+      "representative": "photo_6111774033587147106_y.jpg",
+      "similarity_pct": 100.0,
+      "reason": "Screen capture characteristics (aspect ratio / flat UI regions).",
+      "flags": {
+        "exact_or_near_duplicates": [],
+        "blurry": [
+          "photo_6111774033587147106_y.jpg"
+        ],
+        "low_quality": [
+          "photo_6111774033587147106_y.jpg"
+        ],
+        "screenshots": [
+          "photo_6111774033587147106_y.jpg"
+        ]
+      }
+    }
+  ],
+  "duplicate_pairs": [
+    {
+      "a": "logo-full.png",
+      "b": "photo_6111774033587147087_y.jpg",
+      "hash_distance": 2,
+      "similarity_pct": 98.0
+    },
+    {
+      "a": "logo-icon.png",
+      "b": "photo_6111774033587147086_x.jpg",
+      "hash_distance": 0,
+      "similarity_pct": 98.0
+    },
+    {
+      "a": "photo_6111774033587147122_y.jpg",
+      "b": "photo_6111774033587147127_y.jpg",
+      "hash_distance": 0,
+      "similarity_pct": 98.0
+    },
+    {
+      "a": "photo_6111774033587147122_y.jpg",
+      "b": "product-stack-hero.png",
+      "hash_distance": 0,
+      "similarity_pct": 98.0
+    },
+    {
+      "a": "photo_6111774033587147125_y.jpg",
+      "b": "product-trio-fold.png",
+      "hash_distance": 2,
+      "similarity_pct": 98.0
+    },
+    {
+      "a": "photo_6111774033587147126_y.jpg",
+      "b": "product-stack-four.png",
+      "hash_distance": 0,
+      "similarity_pct": 98.0
+    },
+    {
+      "a": "photo_6111774033587147127_y.jpg",
+      "b": "product-stack-hero.png",
+      "hash_distance": 0,
+      "similarity_pct": 98.0
+    },
+    {
+      "a": "product-trio-flat.png",
+      "b": "product-zip-detail.png",
+      "hash_distance": 0,
+      "similarity_pct": 98.0
+    },
+    {
+      "a": "photo_6111774033587147122_y.jpg",
+      "b": "product-stack-lifestyle.png",
+      "hash_distance": 6,
+      "similarity_pct": 92.0
+    },
+    {
+      "a": "photo_6111774033587147124_y.jpg",
+      "b": "product-trio-flat.png",
+      "hash_distance": 6,
+      "similarity_pct": 92.0
+    },
+    {
+      "a": "photo_6111774033587147124_y.jpg",
+      "b": "product-zip-detail.png",
+      "hash_distance": 6,
+      "similarity_pct": 92.0
+    },
+    {
+      "a": "photo_6111774033587147127_y.jpg",
+      "b": "product-stack-lifestyle.png",
+      "hash_distance": 6,
+      "similarity_pct": 92.0
+    },
+    {
+      "a": "product-stack-hero.png",
+      "b": "product-stack-lifestyle.png",
+      "hash_distance": 6,
+      "similarity_pct": 92.0
+    },
+    {
+      "a": "photo_6111774033587147116_y.jpg",
+      "b": "photo_6111774033587147117_y.jpg",
+      "hash_distance": 8,
+      "similarity_pct": 69.6
+    }
+  ]
+}

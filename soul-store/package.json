@@ -1,0 +1,22 @@
+{
+  "name": "soul-store",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "workspaces": ["apps/*"],
+  "scripts": {
+    "dev": "concurrently -n api,web -c blue,magenta \"npm run dev -w @soul/api\" \"npm run dev -w @soul/web\"",
+    "dev:api": "npm run dev -w @soul/api",
+    "dev:web": "npm run dev -w @soul/web",
+    "db:schema": "node database/run-schema.js",
+    "db:seed": "node database/run-seed.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.4.5",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}

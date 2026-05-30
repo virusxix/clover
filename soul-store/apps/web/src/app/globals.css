@@ -1,0 +1,156 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --soul-bg: #f4f4f5;
+  --soul-text: #0a0a0a;
+  --soul-muted: #6b7280;
+  --soul-glass: rgba(255, 255, 255, 0.45);
+  --soul-glass-border: rgba(255, 255, 255, 0.65);
+  --soul-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  --nav-spacer: 72px;
+  --glass-blur: blur(24px) saturate(180%);
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply text-[var(--soul-text)] antialiased;
+    background:
+      radial-gradient(ellipse 80% 50% at 50% -20%, rgba(200, 210, 220, 0.35), transparent),
+      radial-gradient(ellipse 60% 40% at 100% 0%, rgba(180, 190, 200, 0.2), transparent),
+      var(--soul-bg);
+  }
+}
+
+@layer components {
+  .glass {
+    background: rgba(255, 255, 255, 0.4);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: none;
+    box-shadow: var(--soul-shadow);
+  }
+
+  .glass-dark {
+    background: rgba(15, 15, 15, 0.45);
+    backdrop-filter: blur(24px) saturate(160%);
+    -webkit-backdrop-filter: blur(24px) saturate(160%);
+    border: none;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    @apply text-white;
+  }
+
+  .card-soul {
+    @apply rounded-card bg-white overflow-hidden transition-all duration-300;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .card-soul:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.06);
+    }
+  }
+
+  .btn-soul {
+    @apply inline-flex items-center justify-center px-6 py-3 text-xs font-semibold tracking-widest uppercase transition-all duration-200;
+  }
+
+  .btn-soul--white {
+    @apply btn-soul bg-white text-black hover:bg-black hover:text-white;
+  }
+
+  .btn-soul--dark {
+    @apply btn-soul bg-black text-white hover:bg-white hover:text-black border border-black;
+  }
+
+  .btn-soul--glass {
+    @apply btn-soul glass text-black hover:shadow-card-hover;
+  }
+
+  /* Floating frosted-glass navigation — no white frame */
+  .nav-float {
+    background: rgba(255, 255, 255, 0.32);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: none;
+    border-radius: 28px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1), 0 2px 12px rgba(0, 0, 0, 0.06);
+    transition: box-shadow 0.35s ease, background 0.35s ease;
+  }
+
+  .nav-float:hover {
+    background: rgba(255, 255, 255, 0.4);
+    box-shadow: 0 14px 44px rgba(0, 0, 0, 0.12), 0 4px 16px rgba(0, 0, 0, 0.07);
+  }
+
+  .nav-float-promo {
+    background: rgba(10, 10, 10, 0.5);
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    border: none;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+    @apply text-white rounded-full;
+  }
+
+  .nav-float-sub {
+    background: rgba(255, 255, 255, 0.26);
+    backdrop-filter: blur(20px) saturate(175%);
+    -webkit-backdrop-filter: blur(20px) saturate(175%);
+    border: none;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
+    @apply rounded-full;
+  }
+
+  .nav-link-pill {
+    @apply px-2.5 sm:px-3.5 py-2 sm:py-1.5 rounded-full text-[10px] sm:text-[11px] font-semibold tracking-wide transition-all duration-200 border-0 min-h-[36px] sm:min-h-0 inline-flex items-center;
+  }
+
+  .nav-link-pill:hover {
+    background: rgba(0, 0, 0, 0.06);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    box-shadow: none;
+  }
+
+  .nav-link-pill--active {
+    background: rgba(0, 0, 0, 0.88);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: none;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+    @apply text-white;
+  }
+
+  .nav-spacer {
+    height: var(--nav-spacer);
+    flex-shrink: 0;
+  }
+
+  @media (min-width: 640px) {
+    :root {
+      --nav-spacer: 84px;
+    }
+  }
+
+  .safe-top {
+    padding-top: max(0.5rem, env(safe-area-inset-top, 0px));
+  }
+
+  .safe-bottom {
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+  }
+
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+}

@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>THE CLOVER | Store Admin</title>
+  <link rel="icon" href="assets/logo-icon.png" type="image/png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/admin-dashboard.css?v=5" />
+</head>
+<body>
+  <div id="loginScreen" class="adm-login"></div>
+
+  <div id="adminShell" class="adm-shell" hidden>
+    <aside class="adm-sidebar" id="admSidebar">
+      <a href="index.html" class="adm-brand" target="_blank">
+        <img src="assets/logo-icon.png" alt="" width="40" height="40" />
+        <div>
+          <strong>THE CLOVER</strong>
+          <span>Store Admin</span>
+        </div>
+      </a>
+
+      <nav class="adm-nav" id="admNav" aria-label="Admin menu"></nav>
+
+      <div class="adm-sidebar__foot">
+        <a href="index.html?ve=1" class="adm-sidebar__cta" id="linkVisualEdit">✨ Edit site visually</a>
+        <a href="index.html" target="_blank" rel="noopener">View live store ↗</a>
+        <button type="button" id="btnLogout">Sign out</button>
+      </div>
+    </aside>
+
+    <div class="adm-main">
+      <header class="adm-topbar">
+        <div>
+          <p class="adm-topbar__crumb" id="admCrumb">Home</p>
+          <h1 id="admTitle">Dashboard</h1>
+        </div>
+        <div class="adm-topbar__actions">
+          <span class="adm-draft-pill" id="draftPill">Draft mode</span>
+          <button type="button" class="adm-btn" id="btnPreview">Preview live</button>
+          <button type="button" class="adm-btn adm-btn--primary" id="btnPublish">Publish changes</button>
+        </div>
+      </header>
+      <div class="adm-content" id="admContent"></div>
+    </div>
+  </div>
+
+  <div id="admModal" class="adm-modal" hidden>
+    <div class="adm-modal__backdrop" data-close-modal></div>
+    <div class="adm-modal__panel" role="dialog" aria-modal="true" aria-labelledby="admModalTitle">
+      <header class="adm-modal__head">
+        <h2 id="admModalTitle">Edit</h2>
+        <button type="button" class="adm-modal__close" data-close-modal aria-label="Close">×</button>
+      </header>
+      <div class="adm-modal__body" id="admModalBody"></div>
+      <footer class="adm-modal__foot" id="admModalFoot"></footer>
+    </div>
+  </div>
+
+  <div class="adm-toast" id="admToast" role="status" aria-live="polite"></div>
+
+  <script src="js/catalog-data.js"></script>
+  <script src="js/store.js?v=7"></script>
+  <script src="js/admin-settings.js"></script>
+  <script src="js/admin-media.js"></script>
+  <script src="js/admin-crop.js?v=2"></script>
+  <script src="js/admin-upload.js?v=3"></script>
+  <script src="js/visual-editor-publish.js"></script>
+  <script src="js/admin-app.js?v=6"></script>
+</body>
+</html>

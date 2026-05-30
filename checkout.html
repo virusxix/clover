@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>THE CLOVER | Checkout</title>
+  <link rel="icon" href="assets/logo-icon.png" type="image/png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/site.css?v=6" />
+  <link rel="stylesheet" href="css/vegety.css?v=11" />
+  <link rel="stylesheet" href="css/layout.css?v=5" />
+  <link rel="stylesheet" href="css/nav.css?v=2" />
+  <link rel="stylesheet" href="css/design-system.css?v=1" />
+</head>
+<body data-page="checkout" class="theme-vegety">
+  <div class="page-wrap">
+    <div class="shell">
+      <div id="site-header"></div>
+      <main class="body-inner">
+        <div class="checkout-steps">
+          <span class="checkout-step is-done">Cart</span><span>→</span>
+          <span class="checkout-step is-active">Checkout</span><span>→</span>
+          <span class="checkout-step">Confirmation</span>
+        </div>
+        <div class="cart-layout" id="checkoutLayout">
+          <form class="checkout-form" id="checkoutForm">
+            <section class="checkout-section">
+              <h2>Contact</h2>
+              <div class="form-row"><label for="checkoutEmail">Email</label><input type="email" id="checkoutEmail" required /></div>
+            </section>
+            <section class="checkout-section">
+              <h2>Shipping</h2>
+              <div class="form-row form-row--half">
+                <div><label for="firstName">First name</label><input type="text" id="firstName" required /></div>
+                <div><label for="lastName">Last name</label><input type="text" id="lastName" required /></div>
+              </div>
+              <div class="form-row"><label for="address">Address</label><input type="text" id="address" required /></div>
+              <div class="form-row form-row--half">
+                <div><label for="city">City</label><input type="text" id="city" required /></div>
+                <div><label for="zip">ZIP</label><input type="text" id="zip" required /></div>
+              </div>
+            </section>
+            <section class="checkout-section">
+              <h2>Payment</h2>
+              <div class="payment-options">
+                <label class="payment-option"><input type="radio" name="payment" checked /> Credit / Debit card</label>
+              </div>
+              <div class="form-row" style="margin-top:1rem"><label for="cardNumber">Card number</label><input type="text" id="cardNumber" placeholder="4242 4242 4242 4242" /></div>
+            </section>
+            <button type="submit" class="btn btn--primary btn--block" id="placeOrderBtn">Place order</button>
+          </form>
+          <aside class="order-summary">
+            <h2>Your order</h2>
+            <div id="checkoutItems"></div>
+            <div class="summary-row" style="margin-top:1rem"><span>Subtotal</span><span id="chkSubtotal">$0</span></div>
+            <div class="summary-row"><span>Shipping</span><span id="chkShipping">$0</span></div>
+            <div class="summary-row"><span>Tax</span><span id="chkTax">$0</span></div>
+            <div class="summary-row summary-row--total"><span>Total</span><span id="chkTotal">$0</span></div>
+          </aside>
+        </div>
+        <div class="cart-empty" id="checkoutEmpty" hidden>
+          <p>Your cart is empty.</p>
+          <a href="shop.html" class="btn btn--primary">Shop now</a>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="js/cart.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/site.js"></script>
+  <script src="js/checkout.js"></script>
+</body>
+</html>
