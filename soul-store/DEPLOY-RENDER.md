@@ -54,3 +54,4 @@ The storefront proxies `/api/*` to the API so auth cookies stay on the web origi
 | Login works locally, not on Render | Redeploy **clover-web** after **clover-api** is live |
 | Empty shop | Run `db:schema` and `db:seed` against the same `DATABASE_URL` |
 | 502 on cold start | Wait and refresh; free tier is waking up |
+| Webpack / `tailwindcss` not found | Build must install dev deps (`NPM_CONFIG_PRODUCTION=false npm install`) — see `render.yaml` |

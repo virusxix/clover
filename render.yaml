@@ -33,7 +33,7 @@ services:
     runtime: node
     plan: free
     rootDir: soul-store/apps/web
-    buildCommand: npm install && NEXT_PUBLIC_API_URL=$CLOVER_API_URL npm run build
+    buildCommand: NPM_CONFIG_PRODUCTION=false npm install && NEXT_PUBLIC_API_URL=$CLOVER_API_URL npm run build
     startCommand: npm start
     healthCheckPath: /
     envVars:
