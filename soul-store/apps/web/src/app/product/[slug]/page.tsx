@@ -85,7 +85,15 @@ export default function ProductPage() {
       <div className="grid lg:grid-cols-2 gap-6 sm:gap-10 lg:gap-16">
         <div className="space-y-4">
           <div className="card-soul relative aspect-[3/4] overflow-hidden">
-            <Image src={images[imgIdx]?.url || images[0].url} alt={data.product.name} fill className="object-cover" sizes="50vw" />
+            <Image
+              src={images[imgIdx]?.url || images[0].url}
+              alt={data.product.name}
+              fill
+              priority
+              quality={80}
+              className="object-cover"
+              sizes="(max-width:1024px) 100vw, 50vw"
+            />
           </div>
           {images.length > 1 && (
             <div className="flex gap-3">
@@ -96,7 +104,7 @@ export default function ProductPage() {
                   onClick={() => setImgIdx(i)}
                   className={`relative w-16 h-20 rounded-xl overflow-hidden border-2 ${imgIdx === i ? "border-black" : "border-transparent"}`}
                 >
-                  <Image src={img.url} alt="" fill className="object-cover" sizes="64px" />
+                  <Image src={img.url} alt="" fill quality={70} loading="lazy" className="object-cover" sizes="64px" />
                 </button>
               ))}
             </div>

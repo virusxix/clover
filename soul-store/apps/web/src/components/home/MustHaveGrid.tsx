@@ -47,6 +47,8 @@ export function MustHaveGrid() {
                   src={cat.image}
                   alt={cat.title}
                   fill
+                  quality={75}
+                  loading="lazy"
                   className="object-cover transition-transform duration-500 group-hover:scale-105"
                   sizes="(max-width:768px) 50vw, 25vw"
                 />

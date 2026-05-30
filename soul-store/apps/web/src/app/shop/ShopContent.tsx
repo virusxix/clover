@@ -118,6 +118,7 @@ export function ShopContent() {
 
   useEffect(() => {
     const q = new URLSearchParams();
+    q.set("limit", "12");
     q.set("gender", "women");
     if (category) q.set("category", category);
     if (size) q.set("size", size);

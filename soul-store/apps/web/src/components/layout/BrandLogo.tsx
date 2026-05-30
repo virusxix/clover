@@ -38,6 +38,7 @@ export function BrandLogo({
           className="object-contain"
           style={{ background: "none" }}
           priority
+          quality={90}
         />
       </span>
       {showWordmark && (
