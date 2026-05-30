@@ -1,0 +1,51 @@
+# THE CLOVER — Render Blueprint
+# Dashboard: New → Blueprint → connect github.com/virusxix/clover
+# After first deploy: set DATABASE_URL on clover-api (Supabase session pooler URI).
+
+services:
+  - type: web
+    name: clover-api
+    runtime: node
+    plan: free
+    rootDir: soul-store/apps/api
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_ACCESS_EXPIRES
+        value: 15m
+      - key: JWT_REFRESH_EXPIRES
+        value: 7d
+      - key: DATABASE_URL
+        sync: false
+      - key: CLIENT_URL
+        fromService:
+          type: web
+          name: clover-web
+          envVarKey: RENDER_EXTERNAL_URL
+
+  - type: web
+    name: clover-web
+    runtime: node
+    plan: free
+    rootDir: soul-store/apps/web
+    buildCommand: npm install && NEXT_PUBLIC_API_URL=$CLOVER_API_URL npm run build
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: CLOVER_API_URL
+        fromService:
+          type: web
+          name: clover-api
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: clover-api
+          envVarKey: RENDER_EXTERNAL_URL
