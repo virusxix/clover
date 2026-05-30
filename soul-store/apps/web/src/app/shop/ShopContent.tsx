@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ProductCard } from "@/components/shop/ProductCard";
+import { ProductGridSkeleton } from "@/components/shop/ProductGridSkeleton";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { api, ProductListItem } from "@/lib/api";
 
@@ -100,10 +101,35 @@ function FilterPanel({
   );
 }
 
-export function ShopContent() {
+type Props = {
+  initialProducts?: ProductListItem[];
+  initialQuery?: string;
+};
+
+function buildClientQuery(
+  category: string,
+  size: string,
+  minPrice: string,
+  maxPrice: string,
+  params: URLSearchParams,
+  isSale: boolean
+) {
+  const q = new URLSearchParams();
+  q.set("limit", "12");
+  q.set("gender", "women");
+  if (category) q.set("category", category);
+  if (size) q.set("size", size);
+  if (minPrice) q.set("minPrice", minPrice);
+  if (maxPrice) q.set("maxPrice", maxPrice);
+  if (params.get("featured") === "true") q.set("featured", "true");
+  if (isSale) q.set("sale", "true");
+  return q.toString();
+}
+
+export function ShopContent({ initialProducts = [], initialQuery = "" }: Props) {
   const params = useSearchParams();
-  const [products, setProducts] = useState<ProductListItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [products, setProducts] = useState<ProductListItem[]>(initialProducts);
+  const [loading, setLoading] = useState(false);
   const [category, setCategory] = useState(params.get("category") || "");
   const [size, setSize] = useState("");
   const [minPrice, setMinPrice] = useState("");
@@ -117,22 +143,18 @@ export function ShopContent() {
   }, [params]);
 
   useEffect(() => {
-    const q = new URLSearchParams();
-    q.set("limit", "12");
-    q.set("gender", "women");
-    if (category) q.set("category", category);
-    if (size) q.set("size", size);
-    if (minPrice) q.set("minPrice", minPrice);
-    if (maxPrice) q.set("maxPrice", maxPrice);
-    if (params.get("featured") === "true") q.set("featured", "true");
-    if (isSale) q.set("sale", "true");
+    const q = buildClientQuery(category, size, minPrice, maxPrice, params, isSale);
+    if (q === initialQuery && initialProducts.length > 0) {
+      setProducts(initialProducts);
+      return;
+    }
 
     setLoading(true);
     api<{ products: ProductListItem[] }>(`/api/products?${q}`)
       .then((d) => setProducts(d.products))
       .catch(() => setProducts([]))
       .finally(() => setLoading(false));
-  }, [category, size, minPrice, maxPrice, params, isSale]);
+  }, [category, size, minPrice, maxPrice, params, isSale, initialQuery, initialProducts]);
 
   const filterProps = {
     category,
@@ -183,7 +205,7 @@ export function ShopContent() {
 
         <div className="min-w-0">
           {loading ? (
-            <p className="text-soul-muted py-8">Loading catalog…</p>
+            <ProductGridSkeleton count={6} />
           ) : products.length === 0 ? (
             <GlassCard className="p-8 sm:p-12 text-center text-soul-muted">No products match your filters.</GlassCard>
           ) : (

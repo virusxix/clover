@@ -3,12 +3,16 @@ function getApiBase() {
   return process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 }
 
-type FetchOpts = RequestInit & { json?: unknown };
+type FetchOpts = RequestInit & {
+  json?: unknown;
+  next?: { revalidate?: number | false };
+};
 
 export async function api<T>(path: string, opts: FetchOpts = {}): Promise<T> {
-  const { json, headers, ...rest } = opts;
+  const { json, headers, next, ...rest } = opts;
   const res = await fetch(`${getApiBase()}${path}`, {
     ...rest,
+    ...(next ? { next } : {}),
     credentials: "include",
     headers: {
       ...(json ? { "Content-Type": "application/json" } : {}),

@@ -6,7 +6,9 @@ import Link from "next/link";
 
 async function getFeatured() {
   try {
-    const data = await api<{ products: ProductListItem[] }>("/api/products?featured=true&limit=4");
+    const data = await api<{ products: ProductListItem[] }>("/api/products?featured=true&limit=4", {
+      next: { revalidate: 120 },
+    });
     return data.products;
   } catch {
     return [];

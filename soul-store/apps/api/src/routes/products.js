@@ -3,8 +3,11 @@
  */
 import { Router } from "express";
 import { query } from "../db.js";
+import { preferWebpUrl } from "../media-url.js";
 import { resolvePricing } from "../sale-pricing.js";
 import { getSaleDiscountPercent } from "../store-settings.js";
+
+const PRODUCT_CACHE = "public, max-age=120, stale-while-revalidate=600";
 
 const router = Router();
 
@@ -117,6 +120,7 @@ router.get("/", async (req, res) => {
       );
     }
 
+    res.set("Cache-Control", PRODUCT_CACHE);
     res.json({
       products,
       pagination: { page: pageNum, limit: limitNum, total, pages: Math.ceil(total / limitNum) },
@@ -188,7 +192,7 @@ router.get("/:slug", async (req, res) => {
           stock: v.stock,
           images: images
             .filter((i) => i.variant_id === v.id)
-            .map((i) => ({ url: i.url, alt: i.alt_text })),
+            .map((i) => ({ url: preferWebpUrl(i.url), alt: i.alt_text })),
         };
       }),
       categories,
@@ -218,7 +222,7 @@ function mapProductListItem(row, saleDiscountPercent) {
     compareAtPrice: pricing.compareAtPrice,
     onSale: pricing.onSale,
     discountPercent: pricing.discountPercent,
-    imageUrl: row.image_url,
+    imageUrl: preferWebpUrl(row.image_url),
   };
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState, type ReactNode } from "react";
-import Image from "next/image";
+import { CatalogImage } from "@/components/ui/CatalogImage";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -192,8 +192,8 @@ export default function CheckoutPage() {
         {items.map((item) => (
           <li key={item.id} className="flex gap-3">
             <div className="relative w-14 h-[4.5rem] rounded-lg overflow-hidden shrink-0 bg-neutral-100">
-              <Image
-                src={item.imageUrl || "/assets/hero-image.png"}
+              <CatalogImage
+                src={item.imageUrl}
                 alt={item.name}
                 fill
                 className="object-cover"

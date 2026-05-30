@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Image from "next/image";
+import { CatalogImage } from "@/components/ui/CatalogImage";
+import { assetSrc } from "@/lib/media";
 import Link from "next/link";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { PriceDisplay } from "@/components/shop/PriceDisplay";
@@ -85,7 +86,7 @@ export default function ProductPage() {
       <div className="grid lg:grid-cols-2 gap-6 sm:gap-10 lg:gap-16">
         <div className="space-y-4">
           <div className="card-soul relative aspect-[3/4] overflow-hidden">
-            <Image
+            <CatalogImage
               src={images[imgIdx]?.url || images[0].url}
               alt={data.product.name}
               fill
@@ -104,7 +105,7 @@ export default function ProductPage() {
                   onClick={() => setImgIdx(i)}
                   className={`relative w-16 h-20 rounded-xl overflow-hidden border-2 ${imgIdx === i ? "border-black" : "border-transparent"}`}
                 >
-                  <Image src={img.url} alt="" fill quality={70} loading="lazy" className="object-cover" sizes="64px" />
+                  <CatalogImage src={assetSrc(img.url)} alt="" fill quality={70} className="object-cover" sizes="64px" />
                 </button>
               ))}
             </div>

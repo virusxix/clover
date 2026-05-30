@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
+import { CatalogImage } from "@/components/ui/CatalogImage";
 import { useRouter } from "next/navigation";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { formatMMK } from "@/lib/currency";
@@ -51,7 +51,7 @@ export default function WishlistPage() {
           {items.map((item) => (
             <GlassCard key={item.product_id} className="p-4 flex gap-4 items-center">
               <div className="relative w-16 h-20 rounded-xl overflow-hidden">
-                <Image src={item.image_url || "/assets/hero-image.png"} alt={item.name} fill className="object-cover" />
+                <CatalogImage src={item.image_url} alt={item.name} fill className="object-cover" sizes="64px" />
               </div>
               <div className="flex-1">
                 <Link href={`/product/${item.slug}`} className="font-semibold hover:opacity-70">{item.name}</Link>

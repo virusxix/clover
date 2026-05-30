@@ -4,6 +4,7 @@ import { query } from "../db.js";
 import { requireAuth } from "../middleware/auth.js";
 import { resolvePricing } from "../sale-pricing.js";
 import { getSaleDiscountPercent } from "../store-settings.js";
+import { preferWebpUrl } from "../media-url.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -40,7 +41,7 @@ router.get("/", async (req, res) => {
         compareAtPrice: pricing.compareAtPrice,
         onSale: pricing.onSale,
         discountPercent: pricing.discountPercent,
-        imageUrl: r.image_url,
+        imageUrl: preferWebpUrl(r.image_url),
         lineTotal: pricing.price * r.quantity,
       };
     }),

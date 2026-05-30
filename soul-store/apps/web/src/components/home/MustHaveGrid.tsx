@@ -1,31 +1,32 @@
 import Link from "next/link";
-import Image from "next/image";
+import { CatalogImage } from "@/components/ui/CatalogImage";
+import { assetSrc } from "@/lib/media";
 
 const CATEGORIES = [
   {
     title: "Yoga Essentials",
     desc: "Mats, blocks & studio-ready layers",
     href: "/shop?category=leggings",
-    image: "/assets/photo_6111774033587147116_y.jpg",
+    image: assetSrc("/assets/photo_6111774033587147116_y.jpg"),
     badge: "Get 30% Off",
   },
   {
     title: "Training Tops",
     desc: "Bras, tees & long sleeves",
     href: "/shop?category=tops",
-    image: "/assets/photo_6111774033587147088_y.png",
+    image: assetSrc("/assets/photo_6111774033587147088_y.png"),
   },
   {
     title: "Leggings & Shorts",
     desc: "Compression meets comfort",
     href: "/shop?category=leggings",
-    image: "/assets/photo_6111774033587147117_y.jpg",
+    image: assetSrc("/assets/photo_6111774033587147117_y.jpg"),
   },
   {
     title: "Outerwear",
     desc: "Zip jackets & hoodies",
     href: "/shop?category=jackets",
-    image: "/assets/photo_6111774033587147108_y.jpg",
+    image: assetSrc("/assets/photo_6111774033587147108_y.jpg"),
   },
 ];
 
@@ -43,12 +44,10 @@ export function MustHaveGrid() {
           <Link key={cat.title} href={cat.href} className="group">
             <article className="card-soul relative">
               <div className="relative aspect-[4/5] overflow-hidden">
-                <Image
+                <CatalogImage
                   src={cat.image}
                   alt={cat.title}
                   fill
-                  quality={75}
-                  loading="lazy"
                   className="object-cover transition-transform duration-500 group-hover:scale-105"
                   sizes="(max-width:768px) 50vw, 25vw"
                 />

@@ -19,8 +19,13 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const apiOrigin = process.env.NEXT_PUBLIC_API_URL;
+
   return (
     <html lang="en">
+      <head>
+        {apiOrigin ? <link rel="dns-prefetch" href={apiOrigin} /> : null}
+      </head>
       <body className={`${inter.variable} font-sans min-h-screen flex flex-col`}>
         <AuthProvider>
           <Suspense fallback={<div className="nav-spacer" aria-hidden />}>

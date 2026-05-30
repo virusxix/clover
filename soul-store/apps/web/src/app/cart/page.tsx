@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
+import { CatalogImage } from "@/components/ui/CatalogImage";
 import { useRouter } from "next/navigation";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { PriceDisplay } from "@/components/shop/PriceDisplay";
@@ -64,7 +64,7 @@ export default function CartPage() {
             <GlassCard key={item.id} className="p-4 flex flex-col sm:flex-row gap-4 sm:items-center">
               <div className="flex gap-4 items-center flex-1 min-w-0">
                 <div className="relative w-20 h-24 rounded-xl overflow-hidden shrink-0">
-                  <Image src={item.imageUrl || "/assets/hero-image.png"} alt={item.name} fill className="object-cover" sizes="80px" />
+                  <CatalogImage src={item.imageUrl} alt={item.name} fill className="object-cover" sizes="80px" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <Link href={`/product/${item.slug}`} className="font-semibold hover:opacity-70 line-clamp-2">{item.name}</Link>

@@ -6,7 +6,8 @@ import { api, ProductListItem } from "@/lib/api";
 async function getNewArrivals() {
   try {
     const data = await api<{ products: ProductListItem[] }>(
-      "/api/products?new=true&gender=women&limit=48"
+      "/api/products?new=true&gender=women&limit=12",
+      { next: { revalidate: 120 } }
     );
     return data.products;
   } catch {

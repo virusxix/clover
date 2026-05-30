@@ -9,7 +9,8 @@
     "dev:api": "npm run dev -w @soul/api",
     "dev:web": "npm run dev -w @soul/web",
     "db:schema": "node database/run-schema.js",
-    "db:seed": "node database/run-seed.js"
+    "db:seed": "node database/run-seed.js",
+    "assets:optimize": "python ../scripts/optimize_assets.py"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

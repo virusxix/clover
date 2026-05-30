@@ -1,6 +1,7 @@
 import Link from "next/link";
-import Image from "next/image";
+import { CatalogImage } from "@/components/ui/CatalogImage";
 import { ProductListItem } from "@/lib/api";
+import { assetSrc } from "@/lib/media";
 import { PriceDisplay } from "@/components/shop/PriceDisplay";
 
 type Props = { product: ProductListItem; showNewBadge?: boolean };
@@ -8,18 +9,16 @@ type Props = { product: ProductListItem; showNewBadge?: boolean };
 export function ProductCard({ product, showNewBadge }: Props) {
   const isNew = showNewBadge ?? product.tags?.includes("new");
   const isSale = product.onSale ?? product.tags?.includes("sale");
-  const img = product.imageUrl || "/assets/hero-image.png";
+  const img = assetSrc(product.imageUrl);
 
   return (
     <Link href={`/product/${product.slug}`} className="group block">
       <article className="card-soul">
         <div className="relative aspect-[3/4] overflow-hidden bg-neutral-100">
-          <Image
+          <CatalogImage
             src={img}
             alt={product.name}
             fill
-            quality={75}
-            loading="lazy"
             className="object-cover transition-transform duration-500 group-hover:scale-105"
             sizes="(max-width:768px) 50vw, 25vw"
           />
