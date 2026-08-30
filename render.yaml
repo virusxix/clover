@@ -7,7 +7,7 @@ services:
     name: clover-api
     runtime: node
     plan: free
-    rootDir: soul-store/apps/api
+    rootDir: apps/api
     buildCommand: npm install
     startCommand: npm start
     healthCheckPath: /api/health
@@ -32,7 +32,7 @@ services:
     name: clover-web
     runtime: node
     plan: free
-    rootDir: soul-store/apps/web
+    rootDir: apps/web
     buildCommand: NPM_CONFIG_PRODUCTION=false npm install && NEXT_PUBLIC_API_URL=$CLOVER_API_URL npm run build
     startCommand: npm start
     healthCheckPath: /

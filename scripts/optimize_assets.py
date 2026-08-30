@@ -1,6 +1,6 @@
 """
 Resize and compress catalog images to WebP for faster storefront loads.
-Writes .webp next to originals under assets/ and soul-store/apps/web/public/assets/.
+Writes .webp next to originals under assets/ and apps/web/public/assets/.
 """
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ except ImportError:
 ROOT = Path(__file__).resolve().parents[1]
 TARGET_DIRS = [
     ROOT / "assets",
-    ROOT / "soul-store" / "apps" / "web" / "public" / "assets",
+    ROOT / "apps" / "web" / "public" / "assets",
 ]
 SKIP = {"logo-icon.png", "logo-full.png", "logo-clover.svg", "hero-video.mp4"}
 MAX_WIDTH = {

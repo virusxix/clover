@@ -1,6 +1,6 @@
 # Deploy THE CLOVER on Render
 
-Two web services (API + Next.js storefront) are defined in [`render.yaml`](../render.yaml) at the repo root.
+Two web services (API + Next.js storefront) are defined in [`render.yaml`](./render.yaml).
 
 ## 1. Create the Blueprint
 
@@ -22,7 +22,6 @@ The app uses **PostgreSQL** (e.g. Supabase). On the **clover-api** service:
 From your machine (with `DATABASE_URL` set), or Render **Shell** on `clover-api`:
 
 ```bash
-cd soul-store
 npm install
 npm run db:schema
 npm run db:seed

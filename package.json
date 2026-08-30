@@ -1,5 +1,5 @@
 {
-  "name": "soul-store",
+  "name": "clover",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -10,7 +10,7 @@
     "dev:web": "npm run dev -w @soul/web",
     "db:schema": "node database/run-schema.js",
     "db:seed": "node database/run-seed.js",
-    "assets:optimize": "python ../scripts/optimize_assets.py"
+    "assets:optimize": "python scripts/optimize_assets.py"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
