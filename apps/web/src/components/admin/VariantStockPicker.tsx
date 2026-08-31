@@ -57,7 +57,7 @@ export function variantsFromStock(rows: StockRow[]) {
       });
     }
   }
-  return [...map.values()].sort((a, b) => a.label.localeCompare(b.label));
+  return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label));
 }
 
 export function variantsFromCatalog(rows: CatalogVariant[]) {

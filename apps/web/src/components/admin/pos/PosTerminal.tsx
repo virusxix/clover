@@ -108,9 +108,11 @@ function buildStyles(stock: StockItem[]): ProductStyle[] {
     color.totalQty += row.qty;
   }
 
-  return [...byProduct.entries()]
+  return Array.from(byProduct.entries())
     .map(([productKey, p]) => {
-      const colors = [...p.colors.values()].sort((a, b) => a.colorName.localeCompare(b.colorName));
+      const colors = Array.from(p.colors.values()).sort((a, b) =>
+        a.colorName.localeCompare(b.colorName)
+      );
       return {
         productKey,
         productName: p.productName,
