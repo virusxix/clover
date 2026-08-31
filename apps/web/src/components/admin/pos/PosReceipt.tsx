@@ -45,6 +45,9 @@ const PAY_LABELS: Record<string, string> = {
 
 const PAPER_STORAGE_KEY = "clover-pos-paper-mm";
 
+/** Store location shown on screen, print, and PNG (must stay in sync). */
+const STORE_PLACE = "Mandalay · Myanmar";
+
 /** Inline clover mark — crisp on screen + thermal print */
 function CloverMark({ size = 44, className = "" }: { size?: number; className?: string }) {
   return (
@@ -134,7 +137,7 @@ export function PosReceipt({ receipt, className = "" }: Props) {
           <h1 className="mt-2 text-[13px] font-medium tracking-[0.2em] uppercase text-neutral-700">
             Store Receipt
           </h1>
-          <p className="mt-1 text-[10px] tracking-wide text-neutral-500">Mandalay · Myanmar</p>
+          <p className="mt-1 text-[10px] tracking-wide text-neutral-500">{STORE_PLACE}</p>
         </header>
 
         <div className="mt-4 flex justify-between gap-3 border-y border-double border-neutral-800 py-2.5 text-[11px] text-neutral-600">
@@ -402,7 +405,7 @@ export function printReceipt(receipt: ReceiptData, paperMm: PaperWidthMm = 56) {
     <p class="tag">Premium Sportswear</p>
     <div class="ornament">◆</div>
     <p class="receipt-label">Store Receipt</p>
-    <p class="place">Yangon · Myanmar</p>
+    <p class="place">${STORE_PLACE}</p>
   </div>
   <div class="meta">
     <div>
@@ -490,6 +493,7 @@ function drawOrnamentLine(
   size: number
 ) {
   const mid = widthPx / 2;
+  ctx.save();
   ctx.strokeStyle = "#bbb";
   ctx.lineWidth = 1;
   ctx.beginPath();
@@ -503,6 +507,7 @@ function drawOrnamentLine(
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText("◆", mid, y + size / 2);
+  ctx.restore();
 }
 
 /**
@@ -558,7 +563,7 @@ export async function downloadReceiptPng(
   gap(Math.round(small * 0.4));
   text("STORE RECEIPT", small, "500", "center", "#444");
   gap(Math.round(small * 0.25));
-  text("Yangon · Myanmar", small, "400", "center", "#777");
+  text(STORE_PLACE, small, "400", "center", "#777");
   gap(Math.round(small * 0.7));
   ops.push({ kind: "rule", style: "double" });
   gap(Math.round(small * 0.45));
