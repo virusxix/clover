@@ -11,7 +11,6 @@ dist/
 **/.env
 !**/.env.example
 
-# OS / editor
-.DS_Store
-Thumbs.db
-*.swp
+# Uploaded product images (local disk; ephemeral on free hosting)
+apps/api/uploads/
+

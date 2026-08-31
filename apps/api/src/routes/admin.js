@@ -7,9 +7,32 @@ import { query } from "../db.js";
 import { requireAuth, requireAdmin } from "../middleware/auth.js";
 import { toDisplayAmount, toStoredAmount } from "../currency.js";
 import { getSaleDiscountPercent, setSaleDiscountPercent } from "../store-settings.js";
+import {
+  FABRICS,
+  LENGTHS,
+  TYPES,
+  CATEGORY_DEFAULTS,
+  nextProductSeq,
+  resolveProductCode,
+  describeProductCode,
+} from "../catalog/product-code.js";
 
 const router = Router();
 router.use(requireAuth, requireAdmin);
+
+/** GET /api/admin/product-codes/meta — legend + next sequence for the builder */
+router.get("/product-codes/meta", async (_req, res) => {
+  const nextSeq = await nextProductSeq(query);
+  res.json({
+    prefix: "SO",
+    example: "SO1pljk",
+    nextSeq,
+    fabrics: FABRICS,
+    lengths: LENGTHS,
+    types: TYPES,
+    categoryDefaults: CATEGORY_DEFAULTS,
+  });
+});
 
 /** GET /api/admin/settings */
 router.get("/settings", async (_req, res) => {
@@ -145,9 +168,15 @@ const productSchema = z.object({
   featured: z.boolean().default(false),
   tags: z.array(z.string()).default([]),
   specs: z.record(z.unknown()).default({}),
+  productCode: z.string().min(4).max(32).optional(),
+  fabric: z.string().length(1).optional(),
+  length: z.string().length(1).optional(),
+  type: z.string().min(2).max(4).optional(),
+  seq: z.number().int().positive().optional(),
 });
 
 const createWithVariantSchema = productSchema.extend({
+  productCode: z.string().min(3).max(32),
   tagNew: z.boolean().optional(),
   tagSale: z.boolean().optional(),
   price: z.number().positive(),
@@ -166,37 +195,66 @@ router.post("/products", async (req, res) => {
   const stock = normalizeStock(d.stock);
   const variantKey = d.colorName.toLowerCase().replace(/\s+/g, "-").slice(0, 64);
 
-  const { rows } = await query(
-    `INSERT INTO products (slug, name, description, category_id, gender, activity, featured, tags, specs)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
-    [
-      d.slug,
-      d.name,
-      d.description,
-      d.categoryId || null,
-      d.gender,
-      d.activity,
-      d.featured,
-      tags,
-      d.specs,
-    ]
-  );
-  const product = rows[0];
-
-  const { rows: vrows } = await query(
-    `INSERT INTO product_variants (product_id, variant_key, color_name, color_hex, price_cents, stock)
-     VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
-    [product.id, variantKey, d.colorName, d.colorHex, toStoredAmount(d.price), stock]
-  );
-
-  if (d.imageUrl) {
-    await query(
-      `INSERT INTO product_images (variant_id, url, alt_text, sort_order) VALUES ($1,$2,$3,0)`,
-      [vrows[0].id, d.imageUrl, d.name]
+  let productCode;
+  try {
+    productCode = await resolveProductCode(
+      {
+        productCode: d.productCode,
+        fabric: d.fabric,
+        length: d.length,
+        type: d.type,
+        categoryId: d.categoryId,
+        seq: d.seq,
+      },
+      query
     );
+  } catch (err) {
+    return res.status(400).json({ error: err instanceof Error ? err.message : "Invalid product code" });
   }
 
-  res.status(201).json({ product, variant: vrows[0] });
+  try {
+    const { rows } = await query(
+      `INSERT INTO products (slug, product_code, name, description, category_id, gender, activity, featured, tags, specs)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+      [
+        d.slug,
+        productCode,
+        d.name,
+        d.description,
+        d.categoryId || null,
+        d.gender,
+        d.activity,
+        d.featured,
+        tags,
+        d.specs,
+      ]
+    );
+    const product = rows[0];
+
+    const { rows: vrows } = await query(
+      `INSERT INTO product_variants (product_id, variant_key, color_name, color_hex, price_cents, stock)
+       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+      [product.id, variantKey, d.colorName, d.colorHex, toStoredAmount(d.price), stock]
+    );
+
+    if (d.imageUrl) {
+      await query(
+        `INSERT INTO product_images (variant_id, url, alt_text, sort_order) VALUES ($1,$2,$3,0)`,
+        [vrows[0].id, d.imageUrl, d.name]
+      );
+    }
+
+    res.status(201).json({
+      product,
+      variant: vrows[0],
+      productCodeLabel: describeProductCode(productCode),
+    });
+  } catch (err) {
+    if (err && err.code === "23505") {
+      return res.status(409).json({ error: "Slug or product code already exists" });
+    }
+    throw err;
+  }
 });
 
 const updateProductSchema = productSchema.partial().extend({
@@ -224,33 +282,67 @@ router.patch("/products/:id", async (req, res) => {
     });
   }
 
-  const { rows } = await query(
-    `UPDATE products SET
-       slug = COALESCE($2, slug),
-       name = COALESCE($3, name),
-       description = COALESCE($4, description),
-       category_id = COALESCE($5, category_id),
-       gender = COALESCE($6, gender),
-       activity = COALESCE($7, activity),
-       featured = COALESCE($8, featured),
-       tags = COALESCE($9, tags),
-       specs = COALESCE($10, specs)
-     WHERE id = $1 RETURNING *`,
-    [
-      req.params.id,
-      d.slug,
-      d.name,
-      d.description,
-      d.categoryId,
-      d.gender,
-      d.activity,
-      d.featured,
-      tags,
-      d.specs ? JSON.stringify(d.specs) : null,
-    ]
-  );
-  if (!rows.length) return res.status(404).json({ error: "Not found" });
-  res.json({ product: rows[0] });
+  let productCode = null;
+  const wantsCode =
+    d.productCode != null ||
+    d.fabric != null ||
+    d.length != null ||
+    d.type != null ||
+    d.seq != null;
+  if (wantsCode) {
+    try {
+      productCode = await resolveProductCode(
+        {
+          productCode: d.productCode,
+          fabric: d.fabric,
+          length: d.length,
+          type: d.type,
+          categoryId: d.categoryId,
+          seq: d.seq,
+        },
+        query
+      );
+    } catch (err) {
+      return res.status(400).json({ error: err instanceof Error ? err.message : "Invalid product code" });
+    }
+  }
+
+  try {
+    const { rows } = await query(
+      `UPDATE products SET
+         slug = COALESCE($2, slug),
+         name = COALESCE($3, name),
+         description = COALESCE($4, description),
+         category_id = COALESCE($5, category_id),
+         gender = COALESCE($6, gender),
+         activity = COALESCE($7, activity),
+         featured = COALESCE($8, featured),
+         tags = COALESCE($9, tags),
+         specs = COALESCE($10, specs),
+         product_code = COALESCE($11, product_code)
+       WHERE id = $1 RETURNING *`,
+      [
+        req.params.id,
+        d.slug,
+        d.name,
+        d.description,
+        d.categoryId,
+        d.gender,
+        d.activity,
+        d.featured,
+        tags,
+        d.specs ? JSON.stringify(d.specs) : null,
+        productCode,
+      ]
+    );
+    if (!rows.length) return res.status(404).json({ error: "Not found" });
+    res.json({ product: rows[0], productCodeLabel: describeProductCode(rows[0].product_code) });
+  } catch (err) {
+    if (err && err.code === "23505") {
+      return res.status(409).json({ error: "Slug or product code already exists" });
+    }
+    throw err;
+  }
 });
 
 router.delete("/products/:id", async (req, res) => {

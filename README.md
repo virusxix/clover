@@ -57,7 +57,9 @@ ln -sfn ../../../assets apps/web/public/assets
 
 ```bash
 npm run db:schema
+npm run db:ops
 npm run db:seed
+npm run db:seed:demo    # demo users + analytics sample sales (see database/demo/)
 ```
 
 ### 5. Run frontend + backend
@@ -74,6 +76,8 @@ npm run dev
 Separate: `npm run dev:api` or `npm run dev:web`.
 
 ## Demo Accounts
+
+Seeded by `npm run db:seed:demo` (all files under `database/demo/` — delete that folder for real launch).
 
 | Role     | Email             | Password   |
 |----------|-------------------|------------|

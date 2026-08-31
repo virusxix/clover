@@ -94,7 +94,7 @@ router.get("/", async (req, res) => {
 
     const sql = `
       SELECT DISTINCT ON (p.id)
-        p.id, p.slug, p.name, p.description, p.category_id, p.gender, p.activity,
+        p.id, p.slug, p.product_code, p.name, p.description, p.category_id, p.gender, p.activity,
         p.featured, p.tags, p.specs,
         v.id AS variant_id, v.color_name, v.color_hex, v.price_cents,
         (SELECT url FROM product_images pi
@@ -154,21 +154,40 @@ router.get("/:slug", async (req, res) => {
 
     const variantIds = variants.map((v) => v.id);
     let images = [];
+    let websiteStock = {};
     if (variantIds.length) {
       const { rows: imgs } = await query(
         `SELECT * FROM product_images WHERE variant_id = ANY($1) ORDER BY sort_order`,
         [variantIds]
       );
       images = imgs;
+
+      // Prefer multi-location ledger; fall back to legacy JSONB
+      try {
+        const { rows: levels } = await query(
+          `SELECT variant_id, size, qty FROM inventory_levels
+           WHERE location_id = 'website' AND variant_id = ANY($1)`,
+          [variantIds]
+        );
+        for (const row of levels) {
+          if (!websiteStock[row.variant_id]) websiteStock[row.variant_id] = {};
+          websiteStock[row.variant_id][row.size] = row.qty;
+        }
+      } catch {
+        websiteStock = {};
+      }
     }
 
-    const { rows: categories } = await query(`SELECT * FROM categories ORDER BY sort_order`);
+    const { rows: categories } = await query(
+      `SELECT * FROM categories WHERE id != 'hoodies' ORDER BY sort_order`
+    );
     const salePercent = await getSaleDiscountPercent();
 
     res.json({
       product: {
         id: product.id,
         slug: product.slug,
+        productCode: product.product_code,
         name: product.name,
         description: product.description,
         categoryId: product.category_id,
@@ -180,6 +199,10 @@ router.get("/:slug", async (req, res) => {
       },
       variants: variants.map((v) => {
         const pricing = resolvePricing(v.price_cents, product.tags, salePercent);
+        const stock =
+          websiteStock[v.id] && Object.keys(websiteStock[v.id]).length
+            ? websiteStock[v.id]
+            : v.stock;
         return {
           id: v.id,
           key: v.variant_key,
@@ -189,7 +212,7 @@ router.get("/:slug", async (req, res) => {
           compareAtPrice: pricing.compareAtPrice,
           onSale: pricing.onSale,
           discountPercent: pricing.discountPercent,
-          stock: v.stock,
+          stock,
           images: images
             .filter((i) => i.variant_id === v.id)
             .map((i) => ({ url: preferWebpUrl(i.url), alt: i.alt_text })),
@@ -208,6 +231,7 @@ function mapProductListItem(row, saleDiscountPercent) {
   return {
     id: row.id,
     slug: row.slug,
+    productCode: row.product_code,
     name: row.name,
     description: row.description,
     categoryId: row.category_id,

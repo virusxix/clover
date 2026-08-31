@@ -1,7 +1,28 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { api, User } from "./api";
+/**
+ * Auth React context
+ * ------------------
+ * One job: hold the logged-in user in client state and expose login/logout.
+ * Network calls are delegated to auth-api.ts.
+ */
+
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import { User } from "./api";
+import {
+  loadSessionUser,
+  loginRequest,
+  logoutRequest,
+  refreshSession,
+  registerRequest,
+} from "./auth-api";
 
 type AuthCtx = {
   user: User | null;
@@ -14,45 +35,57 @@ type AuthCtx = {
 
 const AuthContext = createContext<AuthCtx | null>(null);
 
+/** How often we re-check / refresh the session in the background (ms). */
+const SESSION_POLL_MS = 10 * 60 * 1000;
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Share one in-flight refresh so parallel 401s do not spam /refresh.
+  const refreshInFlight = useRef<Promise<boolean> | null>(null);
+
+  const runRefreshOnce = useCallback(() => {
+    if (!refreshInFlight.current) {
+      refreshInFlight.current = refreshSession().finally(() => {
+        refreshInFlight.current = null;
+      });
+    }
+    return refreshInFlight.current;
+  }, []);
+
   const refresh = useCallback(async () => {
     try {
-      const me = await api<User>("/api/auth/me");
-      setUser(me);
-    } catch {
-      setUser(null);
+      const next = await loadSessionUser(runRefreshOnce);
+      setUser(next);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [runRefreshOnce]);
 
   useEffect(() => {
     refresh();
+    const id = window.setInterval(refresh, SESSION_POLL_MS);
+    return () => window.clearInterval(id);
   }, [refresh]);
 
   const login = async (email: string, password: string) => {
-    const res = await api<{ user: User }>("/api/auth/login", {
-      method: "POST",
-      json: { email, password },
-    });
-    setUser(res.user);
-    return res.user;
+    const next = await loginRequest(email, password);
+    setUser(next);
+    return next;
   };
 
   const register = async (email: string, password: string, fullName: string) => {
-    const res = await api<{ user: User }>("/api/auth/register", {
-      method: "POST",
-      json: { email, password, fullName },
-    });
-    setUser(res.user);
+    const next = await registerRequest(email, password, fullName);
+    setUser(next);
   };
 
   const logout = async () => {
-    await api("/api/auth/logout", { method: "POST" });
-    setUser(null);
+    try {
+      await logoutRequest();
+    } finally {
+      setUser(null);
+    }
   };
 
   return (

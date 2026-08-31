@@ -1,11 +1,18 @@
 "use client";
 
+/**
+ * Product detail page
+ * -------------------
+ * One job: load one product by slug and let the shopper pick color/size / add to bag.
+ */
+
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { CatalogImage } from "@/components/ui/CatalogImage";
 import { assetSrc } from "@/lib/media";
 import Link from "next/link";
 import { GlassCard } from "@/components/ui/GlassCard";
+import { CatalogError } from "@/components/ui/CatalogError";
 import { PriceDisplay } from "@/components/shop/PriceDisplay";
 import { api } from "@/lib/api";
 import { formatMMK } from "@/lib/currency";
@@ -28,6 +35,7 @@ type ProductDetail = {
   product: {
     id: string;
     slug: string;
+    productCode?: string | null;
     name: string;
     description: string;
     specs: Record<string, string>;
@@ -42,6 +50,8 @@ export default function ProductPage() {
   const router = useRouter();
   const { user } = useAuth();
   const [data, setData] = useState<ProductDetail | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadingProduct, setLoadingProduct] = useState(true);
   const [variantIdx, setVariantIdx] = useState(0);
   const [size, setSize] = useState("M");
   const [imgIdx, setImgIdx] = useState(0);
@@ -49,11 +59,35 @@ export default function ProductPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    api<ProductDetail>(`/api/products/${slug}`).then(setData).catch(() => setData(null));
+    setLoadingProduct(true);
+    setLoadError(null);
+    api<ProductDetail>(`/api/products/${slug}`)
+      .then((d) => {
+        setData(d);
+        setLoadError(null);
+      })
+      .catch((err) => {
+        setData(null);
+        setLoadError(err instanceof Error ? err.message : "Product not found");
+      })
+      .finally(() => setLoadingProduct(false));
   }, [slug]);
 
-  if (!data) {
-    return <div className="p-20 text-center text-soul-muted">Loading product…</div>;
+  if (loadingProduct) {
+    return <div className="p-10 sm:p-20 text-center text-soul-muted">Loading product…</div>;
+  }
+
+  if (loadError || !data) {
+    return (
+      <div className="max-w-lg mx-auto px-3 sm:px-6 py-12 sm:py-16">
+        <CatalogError title="Product unavailable" message={loadError || "Product not found"} />
+        <div className="text-center mt-6">
+          <Link href="/shop" className="text-xs font-semibold tracking-widest uppercase hover:opacity-60">
+            ← Back to shop
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   const variant = data.variants[variantIdx];
@@ -61,7 +95,7 @@ export default function ProductPage() {
 
   const addToCart = async () => {
     if (!user) {
-      router.push("/login");
+      router.push(`/login?next=/product/${slug}`);
       return;
     }
     setLoading(true);
@@ -76,15 +110,15 @@ export default function ProductPage() {
   };
 
   const toggleWishlist = async () => {
-    if (!user) return router.push("/login");
+    if (!user) return router.push(`/login?next=/product/${slug}`);
     await api(`/api/wishlist/${data.product.id}`, { method: "POST" });
     setMsg("Added to wishlist");
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-6 py-6 sm:py-10 pb-16">
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 py-6 sm:py-10 pb-28 sm:pb-16">
       <div className="grid lg:grid-cols-2 gap-6 sm:gap-10 lg:gap-16">
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           <div className="card-soul relative aspect-[3/4] overflow-hidden">
             <CatalogImage
               src={images[imgIdx]?.url || images[0].url}
@@ -97,13 +131,15 @@ export default function ProductPage() {
             />
           </div>
           {images.length > 1 && (
-            <div className="flex gap-3">
+            <div className="flex gap-2 sm:gap-3 overflow-x-auto scrollbar-none pb-1">
               {images.map((img, i) => (
                 <button
                   key={img.url}
                   type="button"
                   onClick={() => setImgIdx(i)}
-                  className={`relative w-16 h-20 rounded-xl overflow-hidden border-2 ${imgIdx === i ? "border-black" : "border-transparent"}`}
+                  className={`relative w-14 h-[4.5rem] sm:w-16 sm:h-20 rounded-xl overflow-hidden border-2 shrink-0 touch-manipulation ${
+                    imgIdx === i ? "border-black" : "border-transparent"
+                  }`}
                 >
                   <CatalogImage src={assetSrc(img.url)} alt="" fill quality={70} className="object-cover" sizes="64px" />
                 </button>
@@ -112,9 +148,14 @@ export default function ProductPage() {
           )}
         </div>
 
-        <div>
+        <div className="min-w-0">
           <p className="text-xs tracking-widest uppercase text-soul-muted mb-2">THE CLOVER</p>
-          <h1 className="text-2xl sm:text-4xl font-black tracking-tight mb-4">{data.product.name}</h1>
+          <h1 className="text-2xl sm:text-4xl font-black tracking-tight mb-1">{data.product.name}</h1>
+          {data.product.productCode ? (
+            <p className="font-mono text-sm text-soul-muted mb-4 tracking-wide">{data.product.productCode}</p>
+          ) : (
+            <div className="mb-4" />
+          )}
           <div className="mb-6">
             <PriceDisplay
               price={variant.price}
@@ -130,7 +171,7 @@ export default function ProductPage() {
               </p>
             )}
           </div>
-          <p className="text-soul-muted leading-relaxed mb-8">{data.product.description}</p>
+          <p className="text-soul-muted leading-relaxed mb-8 text-sm sm:text-base">{data.product.description}</p>
 
           <div className="mb-6">
             <p className="text-xs font-bold tracking-widest uppercase mb-3">Color — {variant.colorName}</p>
@@ -139,8 +180,13 @@ export default function ProductPage() {
                 <button
                   key={v.id}
                   type="button"
-                  onClick={() => { setVariantIdx(i); setImgIdx(0); }}
-                  className={`w-9 h-9 rounded-full border-2 transition-all ${variantIdx === i ? "border-black scale-110" : "border-black/10"}`}
+                  onClick={() => {
+                    setVariantIdx(i);
+                    setImgIdx(0);
+                  }}
+                  className={`w-10 h-10 rounded-full border-2 transition-all touch-manipulation ${
+                    variantIdx === i ? "border-black scale-110" : "border-black/10"
+                  }`}
                   style={{ background: v.colorHex }}
                   title={v.colorName}
                 />
@@ -159,8 +205,12 @@ export default function ProductPage() {
                     type="button"
                     disabled={!inStock}
                     onClick={() => setSize(s)}
-                    className={`w-12 h-12 rounded-full text-sm font-medium border transition-all ${
-                      size === s ? "bg-black text-white border-black" : inStock ? "border-black/10 hover:border-black/30" : "opacity-30 line-through"
+                    className={`w-12 h-12 rounded-full text-sm font-medium border transition-all touch-manipulation ${
+                      size === s
+                        ? "bg-black text-white border-black"
+                        : inStock
+                          ? "border-black/10 hover:border-black/30"
+                          : "opacity-30 line-through"
                     }`}
                   >
                     {s}
@@ -170,18 +220,23 @@ export default function ProductPage() {
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-3 mb-6">
-            <button type="button" onClick={addToCart} disabled={loading} className="btn-soul--dark flex-1 rounded-full">
+          <div className="hidden sm:flex flex-col sm:flex-row gap-3 mb-6">
+            <button
+              type="button"
+              onClick={addToCart}
+              disabled={loading}
+              className="btn-soul--dark flex-1 rounded-full min-h-[48px]"
+            >
               {loading ? "Adding…" : "Add to Bag"}
             </button>
-            <button type="button" onClick={toggleWishlist} className="btn-soul--glass flex-1 rounded-full">
+            <button type="button" onClick={toggleWishlist} className="btn-soul--glass flex-1 rounded-full min-h-[48px]">
               ♥ Wishlist
             </button>
           </div>
 
           {msg && <p className="text-sm text-green-700 mb-4">{msg}</p>}
 
-          <GlassCard className="p-6 mt-8">
+          <GlassCard className="p-5 sm:p-6 mt-4 sm:mt-8">
             <p className="text-xs font-bold tracking-widest uppercase mb-4">Specifications</p>
             <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
               {Object.entries(data.product.specs || {}).map(([k, v]) => (
@@ -193,9 +248,34 @@ export default function ProductPage() {
             </dl>
           </GlassCard>
 
-          <Link href="/shop" className="inline-block mt-6 text-xs font-semibold tracking-widest uppercase hover:opacity-60">
+          <Link
+            href="/shop"
+            className="inline-flex items-center mt-6 text-xs font-semibold tracking-widest uppercase hover:opacity-60 min-h-[44px]"
+          >
             ← Back to shop
           </Link>
+        </div>
+      </div>
+
+      {/* Mobile sticky CTA */}
+      <div className="sm:hidden fixed bottom-0 left-0 right-0 z-40 glass border-t border-black/5 px-3 py-3 safe-bottom">
+        <div className="flex gap-2 max-w-7xl mx-auto">
+          <button
+            type="button"
+            onClick={toggleWishlist}
+            className="btn-soul--glass rounded-full min-h-[48px] min-w-[48px] px-4"
+            aria-label="Add to wishlist"
+          >
+            ♥
+          </button>
+          <button
+            type="button"
+            onClick={addToCart}
+            disabled={loading}
+            className="btn-soul--dark flex-1 rounded-full min-h-[48px]"
+          >
+            {loading ? "Adding…" : "Add to Bag"}
+          </button>
         </div>
       </div>
     </div>

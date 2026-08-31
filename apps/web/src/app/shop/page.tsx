@@ -1,29 +1,22 @@
 import { Suspense } from "react";
 import { ShopContent } from "./ShopContent";
-import { api, ProductListItem } from "@/lib/api";
+import { buildShopQuery, loadCatalog } from "@/lib/catalog";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
-function buildShopQuery(searchParams: SearchParams) {
-  const q = new URLSearchParams();
-  q.set("limit", "12");
-  q.set("gender", "women");
-  const category = searchParams.category;
-  if (typeof category === "string" && category) q.set("category", category);
-  if (searchParams.featured === "true") q.set("featured", "true");
-  if (searchParams.sale === "true") q.set("sale", "true");
-  return q.toString();
-}
+/**
+ * Shop page (server)
+ * ------------------
+ * One job: read URL search params, load the first product page, hand off to ShopContent.
+ */
 
-async function loadProducts(query: string) {
-  try {
-    const data = await api<{ products: ProductListItem[] }>(`/api/products?${query}`, {
-      next: { revalidate: 120 },
-    });
-    return data.products;
-  } catch {
-    return [];
-  }
+function queryFromSearchParams(searchParams: SearchParams) {
+  const category = typeof searchParams.category === "string" ? searchParams.category : "";
+  return buildShopQuery({
+    category,
+    featured: searchParams.featured === "true",
+    sale: searchParams.sale === "true",
+  });
 }
 
 export default async function ShopPage({
@@ -31,12 +24,16 @@ export default async function ShopPage({
 }: {
   searchParams?: SearchParams;
 }) {
-  const initialQuery = buildShopQuery(searchParams);
-  const initialProducts = await loadProducts(initialQuery);
+  const initialQuery = queryFromSearchParams(searchParams);
+  const { products, error } = await loadCatalog(initialQuery, { revalidate: 120 });
 
   return (
     <Suspense fallback={<div className="p-10 text-center text-soul-muted">Loading shop…</div>}>
-      <ShopContent initialProducts={initialProducts} initialQuery={initialQuery} />
+      <ShopContent
+        initialProducts={products}
+        initialQuery={initialQuery}
+        initialError={error}
+      />
     </Suspense>
   );
 }

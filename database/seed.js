@@ -1,29 +1,27 @@
 /**
- * Seed catalog from THE CLOVER product data + demo accounts
+ * Seed catalog from THE CLOVER product data (categories + products).
+ * Demo users and fake sales live in database/demo/ — not here.
  */
-import bcrypt from "bcryptjs";
-
-async function hashPassword(plain) {
-  return bcrypt.hash(plain, 12);
-}
 
 export const CATEGORIES = [
   { id: "all", label: "All", sort_order: 0 },
   { id: "jackets", label: "Jackets", sort_order: 1 },
   { id: "long-sleeve", label: "Long Sleeve", sort_order: 2 },
   { id: "short-sleeve", label: "Short Sleeve", sort_order: 3 },
-  { id: "hoodies", label: "Hoodies", sort_order: 4 },
-  { id: "shorts", label: "Shorts", sort_order: 5 },
-  { id: "skirts", label: "Skirts", sort_order: 6 },
-  { id: "leggings", label: "Leggings", sort_order: 7 },
-  { id: "tops", label: "Tops & Bras", sort_order: 8 },
-  { id: "accessories", label: "Accessories", sort_order: 9 },
+  { id: "shorts", label: "Shorts", sort_order: 4 },
+  { id: "skirts", label: "Skirts", sort_order: 5 },
+  { id: "leggings", label: "Leggings", sort_order: 6 },
+  { id: "flare-pants", label: "Flare Pants", sort_order: 7 },
+  { id: "biker-pants", label: "Biker Pants", sort_order: 8 },
+  { id: "tops", label: "Tops & Bras", sort_order: 9 },
+  { id: "accessories", label: "Accessories", sort_order: 10 },
 ];
 
 /** Product catalog migrated from js/catalog-data.js */
 export const PRODUCTS = [
   {
     slug: "ribbed-zip-jacket",
+    product_code: "SO1pljk",
     name: "Ribbed Zip Jacket",
     category_id: "jackets",
     gender: "women",
@@ -32,7 +30,7 @@ export const PRODUCTS = [
     tags: ["new", "featured", "ribbed", "zip"],
     description:
       "Four-way stretch zip jacket engineered for training and everyday wear. Moisture-wicking fabric with zero-distraction seams.",
-    specs: { fabric: "Nylon-elastane blend", fit: "Athletic", care: "Machine wash cold" },
+    specs: { fabric: "Polyester", fit: "Athletic", care: "Machine wash cold" },
     variants: [
       { key: "black", color: "Black", hex: "#1a1a1a", price: 185000, stock: { XS: 4, S: 12, M: 18, L: 14, XL: 8 }, images: ["/assets/photo_6111774033587147108_y.jpg"] },
       { key: "espresso", color: "Espresso", hex: "#4a3228", price: 185000, stock: { XS: 4, S: 9, M: 14, L: 11, XL: 5 }, images: ["/assets/photo_6111774033587147111_y.jpg"] },
@@ -42,6 +40,7 @@ export const PRODUCTS = [
   },
   {
     slug: "front-zip-sports-bra",
+    product_code: "SO2prtp",
     name: "Front Zip Sports Bra",
     category_id: "tops",
     gender: "women",
@@ -57,6 +56,7 @@ export const PRODUCTS = [
   },
   {
     slug: "scoop-sports-bra",
+    product_code: "SO3prtp",
     name: "Scoop Sports Bra",
     category_id: "tops",
     gender: "women",
@@ -72,6 +72,7 @@ export const PRODUCTS = [
   },
   {
     slug: "contour-training-tee",
+    product_code: "SO4psss",
     name: "Contour Training Tee",
     category_id: "short-sleeve",
     gender: "women",
@@ -87,6 +88,7 @@ export const PRODUCTS = [
   },
   {
     slug: "flare-compression-legging",
+    product_code: "SO5pllg",
     name: "Flare Compression Legging",
     category_id: "leggings",
     gender: "women",
@@ -100,11 +102,6 @@ export const PRODUCTS = [
       { key: "black", color: "Black", hex: "#111827", price: 110000, stock: { XS: 6, S: 14, M: 22, L: 16, XL: 10 }, images: ["/assets/photo_6111774033587147117_y.jpg"] },
     ],
   },
-];
-
-export const DEMO_USERS = [
-  { email: "admin@clover.com", password: "Admin123!", fullName: "Clover Admin", role: "admin" },
-  { email: "demo@clover.com", password: "Demo1234!", fullName: "Demo Customer", role: "customer" },
 ];
 
 export async function runSeed(query) {
@@ -128,11 +125,26 @@ export async function runSeed(query) {
 
   for (const p of PRODUCTS) {
     const { rows } = await query(
-      `INSERT INTO products (slug, name, description, category_id, gender, activity, featured, tags, specs)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-       ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, tags = EXCLUDED.tags, featured = EXCLUDED.featured
+      `INSERT INTO products (slug, product_code, name, description, category_id, gender, activity, featured, tags, specs)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+       ON CONFLICT (slug) DO UPDATE SET
+         name = EXCLUDED.name,
+         tags = EXCLUDED.tags,
+         featured = EXCLUDED.featured,
+         product_code = COALESCE(EXCLUDED.product_code, products.product_code)
        RETURNING id`,
-      [p.slug, p.name, p.description, p.category_id, p.gender, p.activity, p.featured, p.tags, p.specs]
+      [
+        p.slug,
+        p.product_code || null,
+        p.name,
+        p.description,
+        p.category_id,
+        p.gender,
+        p.activity,
+        p.featured,
+        p.tags,
+        p.specs,
+      ]
     );
     const productId = rows[0].id;
 
@@ -155,12 +167,5 @@ export async function runSeed(query) {
     }
   }
 
-  for (const u of DEMO_USERS) {
-    const hash = await hashPassword(u.password);
-    await query(
-      `INSERT INTO users (email, password_hash, full_name, role)
-       VALUES ($1,$2,$3,$4::user_role) ON CONFLICT (email) DO NOTHING`,
-      [u.email, hash, u.fullName, u.role]
-    );
-  }
+  console.log("[seed] Catalog seeded. Demo logins/sales: npm run db:seed:demo");
 }

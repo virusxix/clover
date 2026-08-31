@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
 import { Inter } from "next/font/google";
 import "./globals.css";
@@ -18,6 +18,13 @@ export const metadata: Metadata = {
   icons: { icon: "/assets/logo-icon.png", apple: "/assets/logo-icon.png" },
 };
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#f4f4f5",
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const apiOrigin = process.env.NEXT_PUBLIC_API_URL;
 
@@ -26,7 +33,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         {apiOrigin ? <link rel="dns-prefetch" href={apiOrigin} /> : null}
       </head>
-      <body className={`${inter.variable} font-sans min-h-screen flex flex-col`}>
+      <body className={`${inter.variable} font-sans min-h-screen flex flex-col overflow-x-hidden`}>
         <AuthProvider>
           <Suspense fallback={<div className="nav-spacer" aria-hidden />}>
             <Header />

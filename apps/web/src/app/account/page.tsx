@@ -31,13 +31,14 @@ export default function AccountPage() {
 
   const changePassword = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const fd = new FormData(e.currentTarget);
+    const form = e.currentTarget;
+    const fd = new FormData(form);
     await api("/api/auth/password", {
       method: "PATCH",
       json: { currentPassword: fd.get("current"), newPassword: fd.get("new") },
     });
     setMsg("Password updated");
-    e.currentTarget.reset();
+    form.reset();
   };
 
   if (loading || !user) return null;

@@ -35,7 +35,7 @@ export function Header() {
     <>
       <header className="fixed top-0 left-0 right-0 z-50 pt-2 sm:pt-4 px-2 sm:px-5 lg:px-8 pointer-events-none safe-top">
         <nav className="nav-float max-w-7xl mx-auto px-2.5 sm:px-4 py-2 sm:py-3 flex items-center justify-between gap-2 sm:gap-4 pointer-events-auto isolate">
-          <BrandLogo size="nav" href="" className="shrink-0 min-w-0" />
+          <BrandLogo size="nav" href="/" className="shrink-0 min-w-0" />
 
           <div className="hidden lg:flex items-center gap-0.5 flex-1 justify-center min-w-0">
             {MAIN_NAV.map((item) => (

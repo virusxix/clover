@@ -3,7 +3,9 @@
 import { useCallback, useState } from "react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { PriceDisplay } from "@/components/shop/PriceDisplay";
+import { ProductImagePicker } from "@/components/admin/ProductImagePicker";
 import { api } from "@/lib/api";
+import { describeProductCode } from "@/lib/product-code";
 
 const SIZES = ["XS", "S", "M", "L", "XL"] as const;
 
@@ -11,10 +13,11 @@ const CATEGORIES = [
   { id: "jackets", label: "Jackets" },
   { id: "long-sleeve", label: "Long Sleeve" },
   { id: "short-sleeve", label: "Short Sleeve" },
-  { id: "hoodies", label: "Hoodies" },
   { id: "shorts", label: "Shorts" },
   { id: "skirts", label: "Skirts" },
   { id: "leggings", label: "Leggings" },
+  { id: "flare-pants", label: "Flare Pants" },
+  { id: "biker-pants", label: "Biker Pants" },
   { id: "tops", label: "Tops & Bras" },
   { id: "accessories", label: "Accessories" },
 ];
@@ -32,6 +35,7 @@ export type AdminVariant = {
 export type AdminProduct = {
   id: string;
   slug: string;
+  product_code?: string | null;
   name: string;
   description: string;
   category_id: string | null;
@@ -112,6 +116,7 @@ function SalePriceHint({
 type FormState = {
   name: string;
   slug: string;
+  productCode: string;
   description: string;
   categoryId: string;
   price: string;
@@ -128,6 +133,7 @@ type FormState = {
 const emptyForm = (): FormState => ({
   name: "",
   slug: "",
+  productCode: "",
   description: "",
   categoryId: "tops",
   price: "",
@@ -193,6 +199,7 @@ export function AdminProductsTab({ products, onRefresh, saleDiscountPercent }: P
           colorHex: form.colorHex,
           imageUrl: form.imageUrl || undefined,
           stock: stockToPayload(form.stock),
+          productCode: form.productCode.trim(),
         },
       });
       setForm(emptyForm());
@@ -211,6 +218,7 @@ export function AdminProductsTab({ products, onRefresh, saleDiscountPercent }: P
     setEditForm({
       name: p.name,
       slug: p.slug,
+      productCode: p.product_code || "",
       description: p.description || "",
       categoryId: p.category_id || "tops",
       price: v ? String(v.price_cents) : "",
@@ -246,6 +254,7 @@ export function AdminProductsTab({ products, onRefresh, saleDiscountPercent }: P
           tags,
           tagNew: editForm.tagNew,
           tagSale: editForm.tagSale,
+          productCode: editForm.productCode.trim() || undefined,
         },
       });
       await api(`/api/admin/products/${editingId}/variants/${editVariantId}`, {
@@ -383,14 +392,35 @@ export function AdminProductsTab({ products, onRefresh, saleDiscountPercent }: P
               />
             </div>
             <div>
-              <label className="text-xs font-bold tracking-widest uppercase text-soul-muted block mb-1">Slug</label>
+              <label className="text-xs font-bold tracking-widest uppercase text-soul-muted block mb-1">Product code *</label>
               <input
-                value={form.slug}
-                onChange={(e) => setField("slug", e.target.value)}
-                className={inputClass}
-                placeholder="auto-from-name"
+                required
+                value={form.productCode}
+                onChange={(e) => setField("productCode", e.target.value)}
+                className={`${inputClass} font-mono`}
+                placeholder="e.g. SO1pljk"
+                maxLength={32}
+                autoCapitalize="off"
+                autoCorrect="off"
+                spellCheck={false}
               />
+              <p className="text-[11px] text-soul-muted mt-1">
+                Type the full code · e.g. SO1pljk (polyester · long · jacket)
+                {form.productCode.trim() && describeProductCode(form.productCode.trim()) !== form.productCode.trim() && (
+                  <> · {describeProductCode(form.productCode.trim())}</>
+                )}
+              </p>
             </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-bold tracking-widest uppercase text-soul-muted block mb-1">Slug</label>
+            <input
+              value={form.slug}
+              onChange={(e) => setField("slug", e.target.value)}
+              className={inputClass}
+              placeholder="auto-from-name"
+            />
           </div>
 
           <div>
@@ -447,15 +477,11 @@ export function AdminProductsTab({ products, onRefresh, saleDiscountPercent }: P
             </div>
           </div>
 
-          <div>
-            <label className="text-xs font-bold tracking-widest uppercase text-soul-muted block mb-1">Image URL</label>
-            <input
-              value={form.imageUrl}
-              onChange={(e) => setField("imageUrl", e.target.value)}
-              placeholder="/assets/..."
-              className={inputClass}
-            />
-          </div>
+          <ProductImagePicker
+            value={form.imageUrl}
+            onChange={(url) => setField("imageUrl", url)}
+            disabled={saving}
+          />
 
           <TagCheckboxes state={form} set={(patch) => setForm((f) => ({ ...f, ...patch }))} />
           {form.tagSale && (
@@ -513,6 +539,9 @@ export function AdminProductsTab({ products, onRefresh, saleDiscountPercent }: P
                     <div className="min-w-0 flex-1">
                       <p className="font-semibold">{p.name}</p>
                       <p className="text-xs text-soul-muted mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+                        {p.product_code && (
+                          <span className="font-mono font-semibold text-soul-ink">{p.product_code}</span>
+                        )}
                         <span>{p.slug} · {qty} in stock</span>
                         {listPreview ? (
                           <PriceDisplay
@@ -570,6 +599,17 @@ export function AdminProductsTab({ products, onRefresh, saleDiscountPercent }: P
                         value={editForm.name}
                         onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
                         className={inputClass}
+                        placeholder="Name"
+                      />
+                      <input
+                        value={editForm.productCode}
+                        onChange={(e) => setEditForm({ ...editForm, productCode: e.target.value })}
+                        className={`${inputClass} font-mono`}
+                        placeholder="Product code e.g. SO1pljk"
+                        maxLength={32}
+                        autoCapitalize="off"
+                        autoCorrect="off"
+                        spellCheck={false}
                       />
                       <input
                         value={editForm.price}
@@ -595,6 +635,11 @@ export function AdminProductsTab({ products, onRefresh, saleDiscountPercent }: P
                     <TagCheckboxes
                       state={editForm}
                       set={(patch) => setEditForm({ ...editForm, ...patch })}
+                    />
+                    <ProductImagePicker
+                      value={editForm.imageUrl}
+                      onChange={(url) => setEditForm({ ...editForm, imageUrl: url })}
+                      disabled={saving}
                     />
                     <input
                       value={editForm.customTags}

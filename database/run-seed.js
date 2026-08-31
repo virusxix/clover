@@ -14,7 +14,7 @@ let pool;
 try {
   pool = await createPool(process.env.DATABASE_URL);
   await runSeed((text, params) => pool.query(text, params));
-  console.log("Seed completed. Demo: demo@clover.com / Demo1234! | Admin: admin@clover.com / Admin123!");
+  console.log("Catalog seed completed. For demo users + analytics: npm run db:seed:demo");
 } catch (err) {
   console.error("Seed failed:", err.message);
   process.exit(1);
