@@ -20,14 +20,12 @@ const nextConfig = {
     ],
   },
   async rewrites() {
-    // Only proxy when we have a real remote API (avoid baking localhost into Vercel)
+    // /api/* is handled by app/api/[...path] (cookie-safe proxy).
+    // Only proxy uploaded product images to the API host.
     if (process.env.VERCEL && !/^https:\/\//i.test(rawApi)) {
       return [];
     }
-    return [
-      { source: "/api/:path*", destination: `${apiBase}/api/:path*` },
-      { source: "/uploads/:path*", destination: `${apiBase}/uploads/:path*` },
-    ];
+    return [{ source: "/uploads/:path*", destination: `${apiBase}/uploads/:path*` }];
   },
   async headers() {
     return [

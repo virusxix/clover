@@ -92,8 +92,8 @@ router.post("/refresh", async (req, res) => {
   }
 
   try {
-    await rotateSession(res, refreshToken);
-    res.json({ ok: true });
+    const rotated = await rotateSession(res, refreshToken);
+    res.json({ ok: true, ...rotated });
   } catch {
     res.status(401).json({ error: "Invalid refresh token" });
   }

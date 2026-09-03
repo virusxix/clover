@@ -27,6 +27,7 @@ export async function loginRequest(email: string, password: string) {
   const res = await api<{ user: User }>("/api/auth/login", {
     method: "POST",
     json: { email, password },
+    retries: 3,
   });
   return res.user;
 }
@@ -40,6 +41,7 @@ export async function registerRequest(
   const res = await api<{ user: User }>("/api/auth/register", {
     method: "POST",
     json: { email, password, fullName },
+    retries: 3,
   });
   return res.user;
 }

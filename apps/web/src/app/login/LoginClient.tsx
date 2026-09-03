@@ -7,7 +7,7 @@
  * Demo hints only show in non-production builds.
  */
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -22,6 +22,20 @@ function safeNextPath(raw: string | null): string | null {
   return raw;
 }
 
+/** Wake the Render API early (cold start) so login is less likely to time out. */
+async function wakeApi() {
+  for (let i = 0; i < 4; i++) {
+    try {
+      const res = await fetch("/api/health", { credentials: "include", cache: "no-store" });
+      if (res.ok) return true;
+    } catch {
+      /* retry */
+    }
+    await new Promise((r) => setTimeout(r, 3000));
+  }
+  return false;
+}
+
 export default function LoginClient() {
   const { login, register, user } = useAuth();
   const router = useRouter();
@@ -31,6 +45,17 @@ export default function LoginClient() {
   const [mode, setMode] = useState<"login" | "register">("login");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [apiReady, setApiReady] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    wakeApi().then((ok) => {
+      if (!cancelled) setApiReady(ok);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   if (user) {
     router.replace(nextPath || (user.role === "admin" ? "/admin" : "/account"));
@@ -41,9 +66,14 @@ export default function LoginClient() {
     e.preventDefault();
     setError("");
     setLoading(true);
-    const fd = new FormData(e.currentTarget);
+    const form = e.currentTarget;
+    const fd = new FormData(form);
 
     try {
+      if (apiReady === false) {
+        setError("Connecting to server… one moment");
+        await wakeApi();
+      }
       if (mode === "login") {
         const loggedIn = await login(String(fd.get("email")), String(fd.get("password")));
         router.push(nextPath || (loggedIn.role === "admin" ? "/admin" : "/account"));
@@ -56,7 +86,12 @@ export default function LoginClient() {
         router.push(nextPath || "/account");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Authentication failed");
+      const msg = err instanceof Error ? err.message : "Authentication failed";
+      setError(
+        /reach|503|502|504|network|waking|timeout/i.test(msg)
+          ? `${msg} — on slow networks wait 30–60s and try Sign In again.`
+          : msg
+      );
     } finally {
       setLoading(false);
     }
@@ -76,6 +111,12 @@ export default function LoginClient() {
             ? "Welcome back to THE CLOVER."
             : "Join THE CLOVER to shop and track orders."}
         </p>
+
+        {apiReady === false && (
+          <p className="text-[11px] text-amber-800 mb-4 text-center rounded-lg bg-amber-50 border border-amber-200/80 px-3 py-2">
+            Server is waking up — first sign-in can take up to a minute on some networks. Keep trying.
+          </p>
+        )}
 
         {showDemoHints && (
           <p className="text-[11px] text-soul-muted mb-4 text-center rounded-lg bg-neutral-100/80 px-3 py-2">
@@ -123,20 +164,17 @@ export default function LoginClient() {
         <button
           type="button"
           onClick={() => setMode(mode === "login" ? "register" : "login")}
-          className="mt-4 text-xs text-soul-muted hover:text-black w-full text-center min-h-[44px]"
+          className="mt-4 w-full text-sm text-soul-muted hover:text-black min-h-[44px]"
         >
           {mode === "login" ? "Need an account? Register" : "Already have an account? Sign in"}
         </button>
-      </GlassCard>
 
-      <p className="text-center mt-6">
-        <Link
-          href="/"
-          className="text-xs tracking-widest uppercase hover:opacity-60 inline-flex min-h-[44px] items-center"
-        >
-          ← Back to store
-        </Link>
-      </p>
+        <p className="mt-6 text-center text-xs text-soul-muted">
+          <Link href="/" className="hover:text-black">
+            ← Back to shop
+          </Link>
+        </p>
+      </GlassCard>
     </div>
   );
 }
