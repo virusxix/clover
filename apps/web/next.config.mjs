@@ -1,6 +1,13 @@
 /** @type {import('next').NextConfig} */
-const apiBase =
-  (process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000").replace(/\/$/, "");
+const rawApi = (process.env.NEXT_PUBLIC_API_URL || "").trim().replace(/\/$/, "");
+const apiBase = rawApi || "http://localhost:4000";
+
+// On Vercel, missing API URL makes every page rewrite to localhost and crash in production.
+if (process.env.VERCEL && !/^https?:\/\//i.test(rawApi)) {
+  console.warn(
+    "[clover] NEXT_PUBLIC_API_URL is not set. Add your Render API URL in Vercel → Environment Variables, then redeploy."
+  );
+}
 
 const nextConfig = {
   images: {
@@ -13,6 +20,10 @@ const nextConfig = {
     ],
   },
   async rewrites() {
+    // Only proxy when we have a real remote API (avoid baking localhost into Vercel)
+    if (process.env.VERCEL && !/^https:\/\//i.test(rawApi)) {
+      return [];
+    }
     return [
       { source: "/api/:path*", destination: `${apiBase}/api/:path*` },
       { source: "/uploads/:path*", destination: `${apiBase}/uploads/:path*` },
