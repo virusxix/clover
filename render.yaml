@@ -1,7 +1,12 @@
-# THE CLOVER — Render Blueprint (API only)
-# Frontend deploys on Vercel — see DEPLOY-VERCEL.md
-# Dashboard: New → Blueprint → connect github.com/virusxix/clover
-# After first deploy: set DATABASE_URL + CLIENT_URL (your Vercel site URL).
+# THE CLOVER — Render Blueprint
+# ==============================
+# BACKEND ONLY — do not add a Next.js / apps/web service here.
+# Frontend = Vercel (DEPLOY-VERCEL.md). API = this file.
+#
+# If an old "clover-web" service still appears in the Render dashboard,
+# delete it manually (Blueprint sync does not always remove old services).
+#
+# After deploy: set DATABASE_URL + CLIENT_URL (your Vercel site URL).
 
 services:
   - type: web
@@ -23,9 +28,8 @@ services:
         value: 7d
       - key: DATABASE_URL
         sync: false
-      # Your Vercel storefront origin, e.g. https://clover.vercel.app
+      # Vercel storefront origin, e.g. https://clover-website-omega.vercel.app
       - key: CLIENT_URL
         sync: false
-      # Optional: allow all *.vercel.app preview deploys
       - key: CORS_VERCEL_PREVIEWS
         value: "true"

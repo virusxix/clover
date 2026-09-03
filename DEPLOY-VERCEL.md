@@ -20,6 +20,9 @@ The Next.js app proxies `/api/*` and `/uploads/*` to your Render API, so login c
 
 You do **not** need a Render web service for the frontend.
 
+If Render still shows **clover-web**, delete it: Dashboard → clover-web → Settings → Delete Web Service.
+(See [DEPLOY-RENDER.md](./DEPLOY-RENDER.md).)
+
 ## 2. Deploy the frontend on Vercel
 
 1. Go to [vercel.com/new](https://vercel.com/new) → import `virusxix/clover`.
