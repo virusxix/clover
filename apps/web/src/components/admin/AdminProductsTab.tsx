@@ -398,14 +398,14 @@ export function AdminProductsTab({ products, onRefresh, saleDiscountPercent }: P
                 value={form.productCode}
                 onChange={(e) => setField("productCode", e.target.value)}
                 className={`${inputClass} font-mono`}
-                placeholder="e.g. SO1pljk"
+                placeholder="Any code — SO1pljk, JK-001, BRA_RED…"
                 maxLength={32}
                 autoCapitalize="off"
                 autoCorrect="off"
                 spellCheck={false}
               />
               <p className="text-[11px] text-soul-muted mt-1">
-                Type the full code · e.g. SO1pljk (polyester · long · jacket)
+                Your own product code (not limited to SO…). Letters, numbers, -, _, .
                 {form.productCode.trim() && describeProductCode(form.productCode.trim()) !== form.productCode.trim() && (
                   <> · {describeProductCode(form.productCode.trim())}</>
                 )}
@@ -605,7 +605,7 @@ export function AdminProductsTab({ products, onRefresh, saleDiscountPercent }: P
                         value={editForm.productCode}
                         onChange={(e) => setEditForm({ ...editForm, productCode: e.target.value })}
                         className={`${inputClass} font-mono`}
-                        placeholder="Product code e.g. SO1pljk"
+                        placeholder="Any code — SO1pljk, JK-001…"
                         maxLength={32}
                         autoCapitalize="off"
                         autoCorrect="off"

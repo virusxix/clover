@@ -1,66 +1,55 @@
-# Deploy THE CLOVER on Render
+# Deploy THE CLOVER API on Render
 
-Two web services (API + Next.js storefront) are defined in [`render.yaml`](./render.yaml).
+The **Express API** lives on Render. The **Next.js storefront** should be on **Vercel** — see [DEPLOY-VERCEL.md](./DEPLOY-VERCEL.md).
 
-## 1. Create the Blueprint
+[`render.yaml`](./render.yaml) defines **clover-api** only.
+
+## 1. Create / update the API service
 
 1. Sign in at [render.com](https://render.com).
-2. **New** → **Blueprint**.
+2. **New** → **Blueprint** (or use an existing **clover-api** web service).
 3. Connect **GitHub** → repository `virusxix/clover`.
-4. Render reads `render.yaml` and creates **clover-api** and **clover-web**.
+4. Confirm root is `apps/api`, start command `npm start`.
 
-## 2. Database (required)
+If you previously had **clover-web** on Render, you can delete that service — the frontend moves to Vercel.
 
-The app uses **PostgreSQL** (e.g. Supabase). On the **clover-api** service:
+## 2. Environment variables
 
-1. **Environment** → add **`DATABASE_URL`** with your Supabase **Session pooler** URI  
-   (Dashboard → Project Settings → Database → Connection string, port `5432`).
-2. Save and redeploy if the service already failed without it.
+| Key | Value |
+|-----|--------|
+| `DATABASE_URL` | Supabase **Session pooler** URI (port `5432`) |
+| `CLIENT_URL` | Vercel storefront origin, e.g. `https://your-app.vercel.app` |
+| `CORS_VERCEL_PREVIEWS` | `true` to allow `*.vercel.app` preview URLs |
+| `JWT_SECRET` | Long random string (auto-generated if using Blueprint) |
 
-`/api/health` returns **503** when the database is unreachable. Fix `DATABASE_URL` before expecting the shop to work.
+`/api/health` returns **503** when the database is unreachable.
 
-### One-time schema + seed
+### One-time schema + seed (from your machine)
 
 ```bash
 npm install
 npm run db:schema
-npm run db:ops      # inventory locations, store POS, ICONIC, cost basis
-npm run db:seed         # catalog only
-npm run db:seed:demo    # optional: demo users + analytics/P&L sample sales
-```
-
-**Demo data lives in `database/demo/`.** Before a real store launch: `npm run db:purge:demo`, delete that folder, and remove the `db:seed:demo` / `db:seed:analytics` / `db:purge:demo` scripts from `package.json`. Create a real admin — do not keep `admin@clover.com` / `demo@clover.com`.
-
-For production demo users only (without deleting the folder yet):
-
-```bash
-SEED_DEMO_USERS=true npm run db:seed:demo
+npm run db:ops
+npm run db:seed
+npm run db:seed:demo    # optional
 ```
 
 ## 3. URLs
 
-| Service     | Default URL                          |
-|------------|---------------------------------------|
-| Storefront | `https://clover-web.onrender.com`     |
-| API        | `https://clover-api.onrender.com`     |
-
-`CLIENT_URL` and `NEXT_PUBLIC_API_URL` are wired automatically via `RENDER_EXTERNAL_URL`.
-
-The storefront proxies `/api/*` to the API so auth cookies stay on the web origin.
+| Service | Host |
+|---------|------|
+| API | `https://clover-api-….onrender.com` |
+| Storefront | Vercel (see DEPLOY-VERCEL.md) |
 
 ## 4. Free tier notes
 
-- Services **spin down** after inactivity; first load may take ~30s.
-- Upgrade plan or use a cron ping if you need always-on.
-- Catalog pages show an explicit error when the API/DB is down (not an empty filter message).
+- API **spins down** after inactivity; first hit may take ~30s.
+- Catalog pages show an error when the API/DB is down.
 
 ## 5. Troubleshooting
 
 | Issue | Fix |
 |-------|-----|
-| `/api/health` → 503 | Set/fix `DATABASE_URL` on **clover-api** (session pooler) |
-| API build fails | Confirm `DATABASE_URL` is set on **clover-api** |
-| Login works locally, not on Render | Redeploy **clover-web** after **clover-api** is live |
-| Empty / error shop | Run `db:schema` and `db:seed` against the same `DATABASE_URL` |
-| 502 on cold start | Wait and refresh; free tier is waking up |
-| Webpack / `tailwindcss` not found | Build must install dev deps (`NPM_CONFIG_PRODUCTION=false npm install`) — see `render.yaml` |
+| `/api/health` → 503 | Set/fix `DATABASE_URL` (session pooler) |
+| CORS / login from Vercel | Set `CLIENT_URL` to the Vercel origin |
+| Empty shop on Vercel | Set `NEXT_PUBLIC_API_URL` on Vercel to this API URL |

@@ -127,8 +127,17 @@ export async function nextProductSeq(query) {
 }
 
 /**
+ * Freeform style / SKU codes (not only the SO… convention).
+ * Letters, digits, hyphen, underscore, dot — 2–32 chars.
+ * @param {string} raw
+ */
+export function isValidFreeformProductCode(raw) {
+  return /^[A-Za-z0-9][A-Za-z0-9._-]{1,31}$/.test(raw);
+}
+
+/**
  * Resolve a product_code from body fields (typed code preferred).
- * Accepts a full code like SO1pljk, or builds from parts as fallback.
+ * Accepts any specific code (e.g. SO1pljk, JK-001, BRA_RED), or builds SO… from parts.
  * @param {{ productCode?: string, fabric?: string, length?: string, type?: string, categoryId?: string, seq?: number }} input
  * @param {(text: string, params?: unknown[]) => Promise<{ rows: any[] }>} query
  */
@@ -137,9 +146,10 @@ export async function resolveProductCode(input, query) {
     const raw = String(input.productCode).trim().replace(/\s+/g, "");
     const parsed = parseProductCode(raw);
     if (parsed) return buildProductCode(parsed);
-    // Allow typing any short alphanumeric style code (user-owned convention)
-    if (!/^[A-Za-z0-9]{3,32}$/.test(raw)) {
-      throw new Error(`Invalid product code "${raw}" (use e.g. SO1pljk)`);
+    if (!isValidFreeformProductCode(raw)) {
+      throw new Error(
+        `Invalid product code "${raw}" — use 2–32 letters/numbers (hyphen, underscore, or dot OK)`
+      );
     }
     return raw;
   }

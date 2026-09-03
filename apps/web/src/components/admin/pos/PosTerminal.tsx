@@ -269,8 +269,8 @@ export function PosTerminal() {
       setReceipt(res);
       clearCart();
       load();
-      // Phone + PeriPage: save/share PNG (browser print won't reach A40)
-      void downloadReceiptPng(res, paperMm);
+      // Any PC with USB / Bluetooth / network printer → OS print dialog
+      printReceipt(res, paperMm);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Checkout failed");
     } finally {
@@ -294,7 +294,7 @@ export function PosTerminal() {
         <div>
           <h2 className="text-lg sm:text-xl font-black tracking-tight">Store POS</h2>
           <p className="text-sm text-soul-muted mt-1 max-w-xl">
-            Sell from store stock · save receipt PNG → print from PeriPage app on your phone
+            Sell from store stock · print on any PC printer (USB, Bluetooth, or network)
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -316,14 +316,25 @@ export function PosTerminal() {
           </select>
           <button
             type="button"
+            onClick={() => {
+              const test = buildTestReceipt();
+              setReceipt(test);
+              printReceipt(test, paperMm);
+            }}
+            className="btn-soul--dark rounded-full min-h-[44px] px-5 text-[10px]"
+          >
+            Test print
+          </button>
+          <button
+            type="button"
             onClick={async () => {
               const test = buildTestReceipt();
               setReceipt(test);
               await downloadReceiptPng(test, paperMm);
             }}
-            className="btn-soul--dark rounded-full min-h-[44px] px-5 text-[10px]"
+            className="btn-soul--glass rounded-full min-h-[44px] px-5 text-[10px]"
           >
-            Test PNG for phone
+            Test PNG (phone)
           </button>
           <button
             type="button"
@@ -341,24 +352,35 @@ export function PosTerminal() {
         </p>
       )}
 
-      <GlassCard className="p-4 text-sm text-soul-muted leading-relaxed">
-        <p className="text-xs font-bold tracking-widest uppercase text-soul-ink mb-2">
-          Print with phone + PeriPage A40
-        </p>
-        <ol className="list-decimal pl-5 space-y-1">
-          <li>
-            On the phone: install <strong>PeriPage</strong>, turn on the A40, connect Bluetooth{" "}
-            <em>inside the app</em> (not only in phone Settings).
-          </li>
-          <li>Set paper clips on the A40 to match the width dropdown (try <strong>56mm</strong>).</li>
-          <li>
-            On this POS (or open the site on your phone): tap <strong>Test PNG for phone</strong> —
-            save/share the image.
-          </li>
-          <li>
-            In PeriPage app → print from gallery / image → pick the receipt PNG → Print.
-          </li>
-        </ol>
+      <GlassCard className="p-4 text-sm text-soul-muted leading-relaxed space-y-4">
+        <div>
+          <p className="text-xs font-bold tracking-widest uppercase text-soul-ink mb-2">
+            Print from any PC (USB / Bluetooth / network)
+          </p>
+          <ol className="list-decimal pl-5 space-y-1">
+            <li>
+              Connect the printer to <strong>this computer</strong> (USB cable, Bluetooth pairing, or
+              network) until it appears in the system printer list.
+            </li>
+            <li>
+              Match the paper width dropdown to the roll (try <strong>56mm</strong> or{" "}
+              <strong>77mm</strong> for receipt printers).
+            </li>
+            <li>
+              After checkout (or <strong>Test print</strong>), the print dialog opens — pick your
+              printer and print. Works on every PC that can see the printer.
+            </li>
+          </ol>
+        </div>
+        <div>
+          <p className="text-xs font-bold tracking-widest uppercase text-soul-ink mb-2">
+            Optional: phone + PeriPage A40
+          </p>
+          <p className="text-sm">
+            If the printer is only paired to a phone (not the PC), use <strong>Save / share PNG</strong>{" "}
+            or <strong>Test PNG (phone)</strong>, then print the image from the PeriPage app.
+          </p>
+        </div>
       </GlassCard>
 
       <div className="grid xl:grid-cols-[1.4fr_1fr] gap-4 lg:gap-6">
@@ -627,17 +649,17 @@ export function PosTerminal() {
             <div className="flex flex-col sm:flex-row gap-2 mt-6">
               <button
                 type="button"
-                onClick={() => void downloadReceiptPng(receipt, paperMm)}
+                onClick={() => printReceipt(receipt, paperMm)}
                 className="btn-soul--dark rounded-full flex-1 min-h-[48px]"
               >
-                Save / share PNG
+                Print receipt
               </button>
               <button
                 type="button"
-                onClick={() => printReceipt(receipt, paperMm)}
+                onClick={() => void downloadReceiptPng(receipt, paperMm)}
                 className="btn-soul--glass rounded-full flex-1 min-h-[48px]"
               >
-                Browser print
+                Save PNG (phone)
               </button>
               <button
                 type="button"

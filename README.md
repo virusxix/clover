@@ -13,7 +13,8 @@ clover/
 ├── assets/           # Product images (source)
 ├── scripts/          # Image tooling
 ├── package.json      # npm workspaces — run both apps
-└── render.yaml       # Production deploy
+├── render.yaml       # API on Render
+└── DEPLOY-VERCEL.md  # Storefront on Vercel
 ```
 
 ## Quick Start
@@ -91,4 +92,6 @@ Seeded by `npm run db:seed:demo` (all files under `database/demo/` — delete th
 - **Admin:** Sales metrics, products, order status, users
 - **Security:** JWT access + refresh tokens, bcrypt, rate-limited auth, Helmet
 
-See [STRUCTURE.md](./STRUCTURE.md) for the file tree. Deploy notes: [DEPLOY-RENDER.md](./DEPLOY-RENDER.md).
+See [STRUCTURE.md](./STRUCTURE.md) for the file tree.
+
+**Deploy:** storefront → [DEPLOY-VERCEL.md](./DEPLOY-VERCEL.md) · API → [DEPLOY-RENDER.md](./DEPLOY-RENDER.md).

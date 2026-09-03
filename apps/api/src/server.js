@@ -27,7 +27,30 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 4000;
-const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:3000";
+
+/** Allowed browser origins (Vercel storefront + local). Comma-separated CLIENT_URLS supported. */
+function allowedOrigins() {
+  const fromEnv = [process.env.CLIENT_URL, ...(process.env.CLIENT_URLS || "").split(",")]
+    .map((s) => String(s || "").trim().replace(/\/$/, ""))
+    .filter(Boolean);
+  return fromEnv.length ? fromEnv : ["http://localhost:3000"];
+}
+
+function corsOrigin(origin, callback) {
+  // Non-browser / same-server requests (health checks, SSR rewrite proxy) have no Origin
+  if (!origin) return callback(null, true);
+  const normalized = origin.replace(/\/$/, "");
+  if (allowedOrigins().includes(normalized)) return callback(null, true);
+  if (process.env.CORS_VERCEL_PREVIEWS === "true") {
+    try {
+      const host = new URL(origin).hostname;
+      if (host === "vercel.app" || host.endsWith(".vercel.app")) return callback(null, true);
+    } catch {
+      /* ignore */
+    }
+  }
+  callback(new Error(`CORS blocked for origin: ${origin}`));
+}
 
 ensureUploadDir();
 
@@ -35,7 +58,12 @@ ensureUploadDir();
 app.set("trust proxy", 1);
 
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
-app.use(cors({ origin: CLIENT_URL, credentials: true }));
+app.use(
+  cors({
+    origin: corsOrigin,
+    credentials: true,
+  })
+);
 app.use(express.json({ limit: "2mb" }));
 app.use(cookieParser());
 

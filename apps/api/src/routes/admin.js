@@ -168,7 +168,12 @@ const productSchema = z.object({
   featured: z.boolean().default(false),
   tags: z.array(z.string()).default([]),
   specs: z.record(z.unknown()).default({}),
-  productCode: z.string().min(4).max(32).optional(),
+  productCode: z
+    .string()
+    .min(2)
+    .max(32)
+    .regex(/^[A-Za-z0-9][A-Za-z0-9._-]{1,31}$/, "Use letters, numbers, -, _, or .")
+    .optional(),
   fabric: z.string().length(1).optional(),
   length: z.string().length(1).optional(),
   type: z.string().min(2).max(4).optional(),
@@ -176,7 +181,11 @@ const productSchema = z.object({
 });
 
 const createWithVariantSchema = productSchema.extend({
-  productCode: z.string().min(3).max(32),
+  productCode: z
+    .string()
+    .min(2)
+    .max(32)
+    .regex(/^[A-Za-z0-9][A-Za-z0-9._-]{1,31}$/, "Use letters, numbers, -, _, or ."),
   tagNew: z.boolean().optional(),
   tagSale: z.boolean().optional(),
   price: z.number().positive(),

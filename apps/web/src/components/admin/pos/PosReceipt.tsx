@@ -261,10 +261,10 @@ const CLOVER_SVG_MARK = `
 </svg>`;
 
 /**
- * Open a print window sized for PeriPage A40.
- * Tip: set paper clips on the A40 to match `paperMm`, then choose that printer in the dialog.
+ * Build print HTML for any system printer (USB / Bluetooth / network).
+ * Paper width matches the POS dropdown; pick that printer in the OS dialog.
  */
-export function printReceipt(receipt: ReceiptData, paperMm: PaperWidthMm = 56) {
+function buildReceiptPrintHtml(receipt: ReceiptData, paperMm: PaperWidthMm) {
   const when = new Date(receipt.soldAt).toLocaleString();
   const shortId = receipt.saleId.slice(0, 8).toUpperCase();
   const pay = PAY_LABELS[receipt.paymentMethod || "cash"] || "Cash";
@@ -298,7 +298,7 @@ export function printReceipt(receipt: ReceiptData, paperMm: PaperWidthMm = 56) {
 
   const noteClean = (receipt.notes || "").replace(/\s*·\s*pay:[a-z_]+/i, "").trim();
 
-  const html = `<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8" />
@@ -306,7 +306,7 @@ export function printReceipt(receipt: ReceiptData, paperMm: PaperWidthMm = 56) {
   <style>
     @page {
       size: ${paperMm}mm auto;
-      margin: 3mm;
+      margin: 2mm;
     }
     * { box-sizing: border-box; }
     html, body {
@@ -323,7 +323,7 @@ export function printReceipt(receipt: ReceiptData, paperMm: PaperWidthMm = 56) {
       line-height: 1.4;
       width: ${contentW}mm;
       max-width: 100%;
-      padding: 3mm 2mm;
+      padding: 2mm;
       margin: 0 auto;
     }
     .logo-wrap {
@@ -392,9 +392,13 @@ export function printReceipt(receipt: ReceiptData, paperMm: PaperWidthMm = 56) {
       text-transform: uppercase; font-weight: 700; margin: 4px 0 0;
     }
     .web { text-align: center; font-size: 8px; color: #999; margin-top: 10px; letter-spacing: 0.08em; }
-    .hint { text-align: center; font-size: 8px; color: #aaa; margin-top: 10px; }
+    .hint {
+      text-align: center; font-size: 9px; color: #666; margin-top: 12px;
+      border-top: 1px dashed #ccc; padding-top: 8px;
+    }
     @media print {
-      .hint { display: none; }
+      .hint { display: none !important; }
+      html, body { width: ${contentW}mm; }
     }
   </style>
 </head>
@@ -434,26 +438,77 @@ export function printReceipt(receipt: ReceiptData, paperMm: PaperWidthMm = 56) {
   <p class="thanks">Thank you for shopping with us</p>
   <p class="thanks-brand">THE CLOVER</p>
   <p class="web">theclover.com</p>
-  <p class="hint">Printer paper: ${paperMm}mm · PeriPage A40</p>
-  <script>
-    window.onload = function () {
-      setTimeout(function () {
-        window.focus();
-        window.print();
-      }, 250);
-    };
-  </script>
+  <p class="hint">Choose your USB / Bluetooth / network printer · paper ${paperMm}mm</p>
 </body>
 </html>`;
+}
 
-  const win = window.open("", "_blank", "noopener,noreferrer,width=480,height=760");
-  if (!win) {
-    alert("Allow pop-ups to print the receipt");
+function triggerPrintInDocument(doc: Document, win?: Window | null) {
+  const run = () => {
+    try {
+      win?.focus();
+      doc.defaultView?.focus();
+      (win || doc.defaultView)?.print();
+    } catch {
+      window.print();
+    }
+  };
+  // Images/SVG are inline — short delay lets layout settle on slow PCs
+  setTimeout(run, 200);
+}
+
+/**
+ * Print receipt on any PC printer (USB, Bluetooth, or network) via the OS print dialog.
+ * Uses a popup when allowed; falls back to a hidden iframe if pop-ups are blocked.
+ */
+export function printReceipt(receipt: ReceiptData, paperMm: PaperWidthMm = 56) {
+  const html = buildReceiptPrintHtml(receipt, paperMm);
+
+  // Do NOT pass "noopener" — it makes window.open return null and breaks printing.
+  const win = window.open("", "_blank", "width=480,height=760");
+  if (win) {
+    try {
+      win.opener = null;
+    } catch {
+      /* ignore */
+    }
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+    triggerPrintInDocument(win.document, win);
     return;
   }
-  win.document.open();
-  win.document.write(html);
-  win.document.close();
+
+  // Pop-up blocked → iframe print (works on every PC browser that allows printing)
+  const iframe = document.createElement("iframe");
+  iframe.setAttribute("title", "Print receipt");
+  iframe.setAttribute("aria-hidden", "true");
+  iframe.style.cssText =
+    "position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0;pointer-events:none";
+  document.body.appendChild(iframe);
+
+  const idoc = iframe.contentDocument || iframe.contentWindow?.document;
+  if (!idoc) {
+    document.body.removeChild(iframe);
+    alert("Could not open the print dialog. Allow pop-ups for this site, then try Print again.");
+    return;
+  }
+
+  idoc.open();
+  idoc.write(html);
+  idoc.close();
+  triggerPrintInDocument(idoc, iframe.contentWindow);
+
+  // Clean up after print dialog closes (or after a long timeout)
+  const cleanup = () => {
+    try {
+      document.body.removeChild(iframe);
+    } catch {
+      /* already removed */
+    }
+  };
+  iframe.contentWindow?.addEventListener?.("afterprint", cleanup);
+  setTimeout(cleanup, 120_000);
 }
 
 function loadLogoImage(): Promise<HTMLImageElement | null> {

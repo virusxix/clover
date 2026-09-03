@@ -25,7 +25,9 @@ clover/
 ├── assets/                 # Source product images
 ├── scripts/                # Image optimize / watermark tools
 ├── package.json            # npm workspaces (api + web)
-├── render.yaml             # Render Blueprint
+├── render.yaml             # Render Blueprint (API only)
+├── DEPLOY-VERCEL.md        # Storefront on Vercel
+├── DEPLOY-RENDER.md        # API on Render
 └── README.md
 ```
 
