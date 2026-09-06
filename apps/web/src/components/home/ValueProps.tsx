@@ -16,7 +16,7 @@ const ITEMS = [
   {
     icon: "🛡",
     title: "Secure Checkout",
-    sub: "No card data collected",
+    sub: "KBZPay · Card · COD (MDY)",
     link: "Learn More",
   },
   {

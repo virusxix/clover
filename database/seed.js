@@ -1,6 +1,16 @@
 /**
  * Seed catalog from THE CLOVER product data (categories + products).
+ * Also ensures the single default admin account exists.
  */
+
+import bcrypt from "bcryptjs";
+
+/** Default admin — override with ADMIN_EMAIL / ADMIN_PASSWORD in apps/api/.env */
+export const DEFAULT_ADMIN = {
+  email: process.env.ADMIN_EMAIL || "admin@clover.com",
+  password: process.env.ADMIN_PASSWORD || "Admin123!",
+  fullName: process.env.ADMIN_NAME || "Clover Admin",
+};
 
 export const CATEGORIES = [
   { id: "all", label: "All", sort_order: 0 },
@@ -103,6 +113,38 @@ export const PRODUCTS = [
   },
 ];
 
+/**
+ * Ensure the one default admin exists.
+ * Creates with the default password if missing; promotes existing email to admin
+ * without overwriting a password they already set.
+ * Demotes any other admins so only this account stays admin.
+ */
+export async function ensureDefaultAdmin(query) {
+  const email = DEFAULT_ADMIN.email.toLowerCase().trim();
+  const hash = await bcrypt.hash(DEFAULT_ADMIN.password, 12);
+
+  await query(
+    `INSERT INTO users (email, password_hash, full_name, role)
+     VALUES ($1, $2, $3, 'admin'::user_role)
+     ON CONFLICT (email) DO UPDATE SET
+       role = 'admin'::user_role,
+       full_name = COALESCE(NULLIF(EXCLUDED.full_name, ''), users.full_name)`,
+    [email, hash, DEFAULT_ADMIN.fullName]
+  );
+
+  // Keep a single admin: demote anyone else with role=admin
+  const { rowCount } = await query(
+    `UPDATE users SET role = 'customer'::user_role
+     WHERE role = 'admin'::user_role AND email <> $1`,
+    [email]
+  );
+
+  console.log(
+    `[seed] Default admin ready: ${email}` +
+      (rowCount ? ` (demoted ${rowCount} other admin account(s))` : "")
+  );
+}
+
 export async function runSeed(query) {
   await query(`
     CREATE TABLE IF NOT EXISTS app_settings (
@@ -114,6 +156,8 @@ export async function runSeed(query) {
   await query(
     `INSERT INTO app_settings (id, sale_discount_percent) VALUES (1, 20) ON CONFLICT (id) DO NOTHING`
   );
+
+  await ensureDefaultAdmin(query);
 
   for (const c of CATEGORIES.filter((x) => x.id !== "all")) {
     await query(

@@ -21,6 +21,7 @@ import {
   type PaperWidthMm,
   type ReceiptData,
 } from "./PosReceipt";
+import { POS_PAYMENT_METHODS, type PosPaymentMethod } from "@/lib/payments";
 
 type StockItem = {
   variantId: string;
@@ -136,13 +137,13 @@ export function PosTerminal() {
   const [sales, setSales] = useState<SaleRow[]>([]);
   const [q, setQ] = useState("");
   const [cart, setCart] = useState<CartLine[]>([]);
-  const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "transfer" | "other">("cash");
+  const [paymentMethod, setPaymentMethod] = useState<PosPaymentMethod>("cash");
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
   const [picker, setPicker] = useState<PickerState | null>(null);
-  const [paperMm, setPaperMm] = useState<PaperWidthMm>(56);
+  const [paperMm, setPaperMm] = useState<PaperWidthMm>(80);
 
   useEffect(() => {
     setPaperMm(loadPaperWidth());
@@ -363,12 +364,11 @@ export function PosTerminal() {
               network) until it appears in the system printer list.
             </li>
             <li>
-              Match the paper width dropdown to the roll (try <strong>56mm</strong> or{" "}
-              <strong>77mm</strong> for receipt printers).
+              Set paper to <strong>80mm (XP-80C)</strong>. In the print dialog use{" "}
+              <strong>Scale 100%</strong>, <strong>Margins: None</strong>, and turn off headers/footers.
             </li>
             <li>
-              After checkout (or <strong>Test print</strong>), the print dialog opens — pick your
-              printer and print. Works on every PC that can see the printer.
+              After checkout (or <strong>Test print</strong>), pick the XP-80C and print.
             </li>
           </ol>
         </div>
@@ -486,16 +486,16 @@ export function PosTerminal() {
 
           <div className="border-t border-black/10 pt-4 mt-4 space-y-3">
             <div className="flex gap-2 flex-wrap">
-              {(["cash", "card", "transfer", "other"] as const).map((m) => (
+              {POS_PAYMENT_METHODS.map((m) => (
                 <button
-                  key={m}
+                  key={m.id}
                   type="button"
-                  onClick={() => setPaymentMethod(m)}
+                  onClick={() => setPaymentMethod(m.id)}
                   className={`px-3 py-2 rounded-full text-[10px] font-bold tracking-widest uppercase min-h-[40px] ${
-                    paymentMethod === m ? "bg-black text-white" : "glass"
+                    paymentMethod === m.id ? "bg-black text-white" : "glass"
                   }`}
                 >
-                  {m}
+                  {m.label}
                 </button>
               ))}
             </div>

@@ -227,7 +227,7 @@ router.post("/store-sales", async (req, res) => {
     .object({
       notes: z.string().max(500).optional(),
       soldAt: z.string().datetime().optional(),
-      paymentMethod: z.enum(["cash", "card", "transfer", "other"]).default("cash"),
+      paymentMethod: z.enum(["cash", "kbzpay", "mmqr", "card"]).default("cash"),
       items: z
         .array(
           z.object({

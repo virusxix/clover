@@ -62,8 +62,6 @@ npm run db:ops
 npm run db:seed
 ```
 
-Create your own admin account in the database (register a user, then set `role = 'admin'`), or insert one via SQL.
-
 ### 5. Run frontend + backend
 
 ```bash

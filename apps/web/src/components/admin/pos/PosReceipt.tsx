@@ -1,11 +1,13 @@
 "use client";
 
 /**
- * THE CLOVER store receipt — on-screen + PeriPage A40–friendly print.
- * A40 paper widths: 56mm / 77mm / 107mm / 210mm (A4).
+ * THE CLOVER store receipt — matches the botanical invoice layout.
+ * On-screen: cream + sage. Print/PNG: bold black for XP-80C thermal.
+ * Logo mark is unchanged (logo-clover.svg paths).
  */
 
 import { formatMMK } from "@/lib/currency";
+import { PAYMENT_LABELS } from "@/lib/payments";
 
 export type ReceiptItem = {
   productName: string;
@@ -24,31 +26,53 @@ export type ReceiptData = {
   notes?: string;
   paymentMethod?: string;
   items: ReceiptItem[];
+  /** Optional walk-in customer fields (blank on receipt if omitted). */
+  customerName?: string;
+  customerPhone?: string;
+  customerAddress?: string;
 };
 
-/** PeriPage A40 supported widths (mm) */
-export type PaperWidthMm = 56 | 77 | 107 | 210;
+/** Roll width options (mm). XP-80C = 80mm. */
+export type PaperWidthMm = 58 | 80 | 56 | 77 | 107 | 210;
 
 export const PAPER_OPTIONS: { mm: PaperWidthMm; label: string }[] = [
+  { mm: 80, label: "80mm (XP-80C)" },
+  { mm: 58, label: "58mm" },
   { mm: 56, label: "56mm (2\")" },
   { mm: 77, label: "77mm (3\")" },
   { mm: 107, label: "107mm (4\")" },
   { mm: 210, label: "210mm (A4)" },
 ];
 
-const PAY_LABELS: Record<string, string> = {
-  cash: "Cash",
-  card: "Card",
-  transfer: "Transfer",
-  other: "Other",
-};
+/** Printable area inside the roll (thermal heads don't print to the edge). */
+function printableWidthMm(paperMm: PaperWidthMm): number {
+  if (paperMm >= 210) return 190;
+  if (paperMm >= 107) return 100;
+  if (paperMm >= 80) return 72; // XP-80C: 80mm roll → ~72mm print
+  if (paperMm >= 77) return 68;
+  return 48; // 56 / 58mm
+}
+
+const PAY_LABELS = PAYMENT_LABELS;
 
 const PAPER_STORAGE_KEY = "clover-pos-paper-mm";
 
-/** Store location shown on screen, print, and PNG (must stay in sync). */
-const STORE_PLACE = "Mandalay · Myanmar";
+const STORE_PHONES = ["09791946536", "09666888627"];
+const STORE_ADDRESS = "69*33 Corner Chan Aye Thar Zan";
+const STORE_MESSENGER = "The Clover";
 
-/** Inline clover mark — crisp on screen + thermal print */
+/** Invoice-style number from sale UUID (e.g. 00282). */
+function invoiceNo(saleId: string): string {
+  const hex = saleId.replace(/-/g, "").slice(0, 8);
+  const n = Number.parseInt(hex, 16) % 100000;
+  return String(Number.isFinite(n) ? n : 0).padStart(5, "0");
+}
+
+function noteClean(notes?: string) {
+  return (notes || "").replace(/\s*·\s*pay:[a-z_]+/i, "").trim();
+}
+
+/** Official clover mark — same paths as /assets/logo-clover.svg (do not alter). */
 function CloverMark({ size = 44, className = "" }: { size?: number; className?: string }) {
   return (
     <svg
@@ -80,21 +104,50 @@ function CloverMark({ size = 44, className = "" }: { size?: number; className?: 
   );
 }
 
-function Ornament({ className = "" }: { className?: string }) {
+function PhoneIcon({ className = "" }: { className?: string }) {
   return (
-    <div className={`flex items-center gap-2 text-neutral-400 ${className}`} aria-hidden>
-      <span className="h-px flex-1 bg-gradient-to-r from-transparent via-neutral-400 to-transparent" />
-      <span className="text-[8px] tracking-[0.35em]">◆</span>
-      <span className="h-px flex-1 bg-gradient-to-r from-transparent via-neutral-400 to-transparent" />
-    </div>
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" className={className} aria-hidden>
+      <path
+        d="M6.5 3.5h3l1.2 4.2-2 1.2a12 12 0 0 0 5.4 5.4l1.2-2 4.2 1.2v3a1.5 1.5 0 0 1-1.6 1.5A15.5 15.5 0 0 1 5 5.1 1.5 1.5 0 0 1 6.5 3.5Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function HomeIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" className={className} aria-hidden>
+      <path
+        d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function ChatIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" className={className} aria-hidden>
+      <path
+        d="M5 6.5A3.5 3.5 0 0 1 8.5 3h7A3.5 3.5 0 0 1 19 6.5v6A3.5 3.5 0 0 1 15.5 16H11l-4 3.5V16H8.5A3.5 3.5 0 0 1 5 12.5v-6Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
 export function loadPaperWidth(): PaperWidthMm {
-  if (typeof window === "undefined") return 56;
+  if (typeof window === "undefined") return 80;
   const n = Number(localStorage.getItem(PAPER_STORAGE_KEY));
-  if (n === 56 || n === 77 || n === 107 || n === 210) return n;
-  return 56;
+  if (n === 80 || n === 58 || n === 56 || n === 77 || n === 107 || n === 210) return n;
+  return 80;
 }
 
 export function savePaperWidth(mm: PaperWidthMm) {
@@ -106,74 +159,117 @@ type Props = {
   className?: string;
 };
 
+/** On-screen preview — botanical invoice layout (cream + sage). */
 export function PosReceipt({ receipt, className = "" }: Props) {
-  const when = new Date(receipt.soldAt);
-  const shortId = receipt.saleId.slice(0, 8).toUpperCase();
+  const inv = invoiceNo(receipt.saleId);
   const pay = PAY_LABELS[receipt.paymentMethod || "cash"] || "Cash";
-  const units = receipt.items.reduce((s, i) => s + i.quantity, 0);
+  const name = receipt.customerName?.trim() || "";
+  const phone = receipt.customerPhone?.trim() || "";
+  const address = receipt.customerAddress?.trim() || "";
+  const note = noteClean(receipt.notes);
 
   return (
     <div
-      className={`pos-receipt relative overflow-hidden rounded-sm border border-neutral-200 bg-[#fafaf8] text-neutral-900 shadow-[0_1px_0_rgba(0,0,0,0.04)] ${className}`}
+      className={`pos-receipt relative overflow-hidden rounded-sm border border-[#d9d2c4] bg-[#f3eee4] text-[#1a1a1a] shadow-[0_1px_0_rgba(0,0,0,0.04)] ${className}`}
       data-receipt
     >
-      {/* Soft corner accents */}
-      <div className="pointer-events-none absolute inset-x-3 top-0 h-px bg-gradient-to-r from-transparent via-neutral-300 to-transparent" />
-      <div className="pointer-events-none absolute inset-y-3 left-0 w-px bg-gradient-to-b from-transparent via-neutral-300 to-transparent" />
-      <div className="pointer-events-none absolute inset-y-3 right-0 w-px bg-gradient-to-b from-transparent via-neutral-300 to-transparent" />
+      {/* Soft sage botanical washes (screen only) */}
+      <div
+        className="pointer-events-none absolute -right-8 -top-10 h-40 w-40 rounded-full opacity-50"
+        style={{
+          background:
+            "radial-gradient(circle at 30% 40%, rgba(140,168,130,0.55), transparent 70%)",
+        }}
+      />
+      <div
+        className="pointer-events-none absolute -bottom-12 -left-10 h-44 w-44 rounded-full opacity-45"
+        style={{
+          background:
+            "radial-gradient(circle at 60% 50%, rgba(140,168,130,0.5), transparent 72%)",
+        }}
+      />
 
       <div className="pos-receipt__inner relative px-4 py-5 sm:px-5">
-        <header className="text-center mb-1">
-          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full border border-neutral-300 bg-white text-neutral-900 shadow-sm">
-            <CloverMark size={34} />
+        {/* Header: logo | brand | phones */}
+        <header className="grid grid-cols-[auto_1fr_auto] items-start gap-3">
+          <div className="text-[#1a1a1a] pt-0.5">
+            <CloverMark size={42} />
           </div>
-          <p className="text-[11px] font-semibold tracking-[0.42em] uppercase text-neutral-900">
-            THE CLOVER
-          </p>
-          <p className="mt-1.5 text-[9px] font-medium tracking-[0.28em] uppercase text-neutral-500">
-            Premium Sportswear
-          </p>
-          <Ornament className="mt-3 mb-1" />
-          <h1 className="mt-2 text-[13px] font-medium tracking-[0.2em] uppercase text-neutral-700">
-            Store Receipt
-          </h1>
-          <p className="mt-1 text-[10px] tracking-wide text-neutral-500">{STORE_PLACE}</p>
+          <div className="text-center min-w-0 pt-1">
+            <p className="font-serif text-[17px] font-bold tracking-[0.08em] uppercase leading-none">
+              THE CLOVER
+            </p>
+            <p className="mt-1 font-serif text-[12px] italic tracking-wide text-[#333]">
+              Sportswear
+            </p>
+          </div>
+          <div className="text-right text-[10px] font-bold leading-snug pt-1">
+            <div className="inline-flex items-start gap-1.5">
+              <PhoneIcon className="mt-0.5 shrink-0 text-[#1a1a1a]" />
+              <div>
+                {STORE_PHONES.map((p) => (
+                  <p key={p} className="tabular-nums tracking-wide">
+                    {p}
+                  </p>
+                ))}
+              </div>
+            </div>
+          </div>
         </header>
 
-        <div className="mt-4 flex justify-between gap-3 border-y border-double border-neutral-800 py-2.5 text-[11px] text-neutral-600">
-          <div className="min-w-0">
-            <p className="text-[9px] uppercase tracking-[0.18em] text-neutral-400">Date</p>
-            <p className="mt-0.5 truncate">{when.toLocaleString()}</p>
+        {/* Invoice meta */}
+        <div className="mt-5 grid grid-cols-[1fr_1.35fr] gap-4 text-[11px]">
+          <div>
+            <p className="font-serif font-bold tracking-[0.06em] uppercase">Invoice No:</p>
+            <p className="mt-1 text-[18px] font-black tabular-nums tracking-wide">{inv}</p>
+            <p className="mt-2 text-[10px] font-semibold text-[#444]">
+              {new Date(receipt.soldAt).toLocaleString()} · {pay}
+            </p>
           </div>
-          <div className="text-right shrink-0">
-            <p className="text-[9px] uppercase tracking-[0.18em] text-neutral-400">No.</p>
-            <p className="mt-0.5 font-mono tracking-wider">#{shortId}</p>
+          <div className="space-y-2 font-serif text-[11px]">
+            <div className="flex gap-2 border-b border-[#1a1a1a]/35 pb-1">
+              <span className="shrink-0 font-bold tracking-wide uppercase">Name:</span>
+              <span className="min-w-0 flex-1 font-semibold">{name || "\u00a0"}</span>
+            </div>
+            <div className="flex gap-2 border-b border-[#1a1a1a]/35 pb-1">
+              <span className="shrink-0 font-bold tracking-wide uppercase">Ph No:</span>
+              <span className="min-w-0 flex-1 font-semibold">{phone || "\u00a0"}</span>
+            </div>
+            <div className="flex gap-2 border-b border-[#1a1a1a]/35 pb-1">
+              <span className="shrink-0 font-bold tracking-wide uppercase">Address:</span>
+              <span className="min-w-0 flex-1 font-semibold">{address || "\u00a0"}</span>
+            </div>
           </div>
         </div>
 
-        <table className="w-full text-sm mt-3 mb-1">
+        {/* Line items */}
+        <table className="mt-5 w-full border-collapse text-[11px] border-2 border-[#1a1a1a]">
           <thead>
-            <tr className="text-left text-[9px] uppercase tracking-[0.2em] text-neutral-400">
-              <th className="pb-2 font-medium">Item</th>
-              <th className="pb-2 text-right font-medium">Amount</th>
+            <tr className="font-serif text-[10px] uppercase tracking-wide">
+              <th className="border border-[#1a1a1a] px-1.5 py-2 text-left font-bold">Description</th>
+              <th className="border border-[#1a1a1a] px-1 py-2 text-center font-bold w-[12%]">Qty</th>
+              <th className="border border-[#1a1a1a] px-1 py-2 text-right font-bold w-[22%]">Price</th>
+              <th className="border border-[#1a1a1a] px-1.5 py-2 text-right font-bold w-[24%]">Total</th>
             </tr>
           </thead>
           <tbody>
             {receipt.items.map((line, idx) => (
-              <tr
-                key={`${line.productName}-${line.size}-${idx}`}
-                className="align-top border-t border-neutral-200/80"
-              >
-                <td className="py-2.5 pr-2">
-                  <p className="font-semibold leading-snug tracking-tight">{line.productName}</p>
-                  <p className="mt-0.5 text-[11px] text-neutral-500">
-                    {[line.productCode, line.colorName, `Sz ${line.size}`, `×${line.quantity}`]
+              <tr key={`${line.productName}-${line.size}-${idx}`}>
+                <td className="border border-[#1a1a1a] px-1.5 py-2 align-top font-semibold leading-snug">
+                  {line.productName}
+                  <span className="mt-0.5 block text-[10px] font-bold text-[#333]">
+                    {[line.colorName, line.size ? `Sz ${line.size}` : null, line.productCode]
                       .filter(Boolean)
                       .join(" · ")}
-                  </p>
-                  <p className="text-[11px] text-neutral-400">@ {formatMMK(line.unitPrice)}</p>
+                  </span>
                 </td>
-                <td className="py-2.5 text-right whitespace-nowrap font-medium tabular-nums">
+                <td className="border border-[#1a1a1a] px-1 py-2 text-center align-top font-bold tabular-nums">
+                  {line.quantity}
+                </td>
+                <td className="border border-[#1a1a1a] px-1 py-2 text-right align-top font-bold tabular-nums whitespace-nowrap">
+                  {formatMMK(line.unitPrice)}
+                </td>
+                <td className="border border-[#1a1a1a] px-1.5 py-2 text-right align-top font-bold tabular-nums whitespace-nowrap">
                   {formatMMK(line.lineTotal)}
                 </td>
               </tr>
@@ -181,52 +277,47 @@ export function PosReceipt({ receipt, className = "" }: Props) {
           </tbody>
         </table>
 
-        <div className="mt-2 border-t-2 border-neutral-900 pt-3 space-y-1.5 text-sm">
-          <div className="flex justify-between text-[12px] text-neutral-500">
-            <span className="tracking-wide">Items</span>
-            <span className="tabular-nums">{units}</span>
-          </div>
-          <div className="flex justify-between text-[12px] text-neutral-500">
-            <span className="tracking-wide">Payment</span>
-            <span>{pay}</span>
-          </div>
-          <div className="mt-1 flex items-end justify-between border-t border-neutral-200 pt-2.5">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.22em]">Total</span>
-            <span className="text-xl font-black tracking-tight tabular-nums">
+        {/* Total amount box */}
+        <div className="mt-0 flex justify-end">
+          <div className="grid w-[62%] max-w-[280px] grid-cols-[1fr_1.1fr] border-2 border-t-0 border-[#1a1a1a] text-[11px]">
+            <div className="border-r-2 border-[#1a1a1a] px-2 py-2.5 text-center font-serif font-bold uppercase tracking-wide">
+              Total Amount
+            </div>
+            <div className="px-2 py-2.5 text-right text-[15px] font-black tabular-nums">
               {formatMMK(receipt.total)}
-            </span>
+            </div>
           </div>
         </div>
 
-        {receipt.notes && !/^pay:/.test(receipt.notes) && (
-          <p className="mt-3 text-[11px] text-neutral-500">
-            Note: {receipt.notes.replace(/\s*·\s*pay:[a-z_]+/i, "")}
-          </p>
-        )}
+        {note && <p className="mt-3 text-[11px] font-semibold text-[#333]">Note: {note}</p>}
 
-        <Ornament className="mt-5" />
-        <p className="mt-3 text-center text-[10px] tracking-[0.12em] text-neutral-500">
-          Thank you for shopping with us
-        </p>
-        <p className="mt-1 text-center text-[9px] font-semibold tracking-[0.35em] uppercase text-neutral-800">
-          THE CLOVER
-        </p>
-        <p className="mt-3 text-center text-[9px] tracking-wide text-neutral-400">
-          theclover.com
-        </p>
+        {/* Footer */}
+        <div className="mt-6 flex items-start justify-between gap-3 text-[10px] font-bold">
+          <div className="flex items-start gap-1.5 min-w-0">
+            <HomeIcon className="mt-0.5 shrink-0" />
+            <span className="leading-snug">{STORE_ADDRESS}</span>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <ChatIcon />
+            <span>{STORE_MESSENGER}</span>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
-/** Demo receipt for PeriPage A40 hardware test (no sale required). */
+/** Test receipt for hardware check (no sale required). */
 export function buildTestReceipt(): ReceiptData {
   return {
-    saleId: "00000000-test-print-a40",
+    saleId: "00000000-test-print-xp80",
     soldAt: new Date().toISOString(),
     total: 275000,
     paymentMethod: "cash",
-    notes: "TEST PRINT · PeriPage A40",
+    notes: "TEST PRINT · XP-80C",
+    customerName: "",
+    customerPhone: "",
+    customerAddress: "",
     items: [
       {
         productName: "Ribbed Zip Jacket",
@@ -250,195 +341,219 @@ export function buildTestReceipt(): ReceiptData {
   };
 }
 
+/** Same logo paths as logo-clover.svg — stroke kept for thermal visibility only via color. */
 const CLOVER_SVG_MARK = `
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="42" height="42" fill="none" aria-hidden="true">
-  <path stroke="#111" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="36" height="36" fill="none" aria-hidden="true">
+  <path stroke="#000" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"
     d="M24 8 C30 8 34 12 34 18 C34 24 30 28 24 28 C18 28 14 24 14 18 C14 12 18 8 24 8 Z
        M24 20 C30 20 34 24 34 30 C34 36 30 40 24 40 C18 40 14 36 14 30 C14 24 18 20 24 20 Z" />
-  <path stroke="#111" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"
+  <path stroke="#000" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"
     d="M40 24 C40 30 36 34 30 34 C24 34 20 30 20 24 C20 18 24 14 30 14 C36 14 40 18 40 24 Z
        M28 24 C28 30 24 34 18 34 C12 34 8 30 8 24 C8 18 12 14 18 14 C24 14 28 18 28 24 Z" />
 </svg>`;
 
+const PHONE_SVG = `<svg viewBox="0 0 24 24" width="11" height="11" fill="none" aria-hidden="true"><path d="M6.5 3.5h3l1.2 4.2-2 1.2a12 12 0 0 0 5.4 5.4l1.2-2 4.2 1.2v3a1.5 1.5 0 0 1-1.6 1.5A15.5 15.5 0 0 1 5 5.1 1.5 1.5 0 0 1 6.5 3.5Z" stroke="#000" stroke-width="2" stroke-linejoin="round"/></svg>`;
+const HOME_SVG = `<svg viewBox="0 0 24 24" width="11" height="11" fill="none" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5Z" stroke="#000" stroke-width="2" stroke-linejoin="round"/></svg>`;
+const CHAT_SVG = `<svg viewBox="0 0 24 24" width="11" height="11" fill="none" aria-hidden="true"><path d="M5 6.5A3.5 3.5 0 0 1 8.5 3h7A3.5 3.5 0 0 1 19 6.5v6A3.5 3.5 0 0 1 15.5 16H11l-4 3.5V16H8.5A3.5 3.5 0 0 1 5 12.5v-6Z" stroke="#000" stroke-width="2" stroke-linejoin="round"/></svg>`;
+
 /**
- * Build print HTML for any system printer (USB / Bluetooth / network).
- * Paper width matches the POS dropdown; pick that printer in the OS dialog.
+ * Thermal print HTML — invoice layout, bold black type for XP-80C.
  */
 function buildReceiptPrintHtml(receipt: ReceiptData, paperMm: PaperWidthMm) {
+  const inv = invoiceNo(receipt.saleId);
   const when = new Date(receipt.soldAt).toLocaleString();
-  const shortId = receipt.saleId.slice(0, 8).toUpperCase();
   const pay = PAY_LABELS[receipt.paymentMethod || "cash"] || "Cash";
-  const units = receipt.items.reduce((s, i) => s + i.quantity, 0);
-  const contentW = Math.max(48, paperMm - 8);
-  const isNarrow = paperMm <= 77;
-  const bodyFont = isNarrow ? 11 : 12;
-  const titleTrack = isNarrow ? "0.28em" : "0.36em";
+  const printW = printableWidthMm(paperMm);
+  const isNarrow = printW <= 52;
+  const body = isNarrow ? 11 : 12;
+  const small = isNarrow ? 10 : 11;
+  const brand = isNarrow ? 13 : 15;
+  const name = escapeHtml(receipt.customerName?.trim() || "");
+  const phone = escapeHtml(receipt.customerPhone?.trim() || "");
+  const address = escapeHtml(receipt.customerAddress?.trim() || "");
+  const note = noteClean(receipt.notes);
 
   const rows = receipt.items
-    .map(
-      (line) => `
-      <tr>
-        <td style="padding:8px 4px 8px 0;vertical-align:top;border-top:1px solid #e5e5e5">
-          <div style="font-weight:700;letter-spacing:-0.01em">${escapeHtml(line.productName)}</div>
-          <div style="font-size:10px;color:#555;margin-top:2px">
-            ${escapeHtml(
-              [line.productCode, line.colorName, `Sz ${line.size}`, `x${line.quantity}`]
-                .filter(Boolean)
-                .join(" · ")
-            )}
-          </div>
-          <div style="font-size:10px;color:#777;margin-top:1px">@ ${formatMMK(line.unitPrice)}</div>
-        </td>
-        <td style="padding:8px 0;text-align:right;white-space:nowrap;font-weight:600;border-top:1px solid #e5e5e5;font-variant-numeric:tabular-nums">
-          ${formatMMK(line.lineTotal)}
-        </td>
-      </tr>`
-    )
+    .map((line) => {
+      const desc = escapeHtml(line.productName);
+      const meta = escapeHtml(
+        [line.colorName, line.size ? `Sz ${line.size}` : null, line.productCode]
+          .filter(Boolean)
+          .join(" · ")
+      );
+      return `<tr>
+        <td class="c desc"><div class="dn">${desc}</div>${meta ? `<div class="dm">${meta}</div>` : ""}</td>
+        <td class="c qty">${line.quantity}</td>
+        <td class="c price">${formatMMK(line.unitPrice)}</td>
+        <td class="c tot">${formatMMK(line.lineTotal)}</td>
+      </tr>`;
+    })
     .join("");
 
-  const noteClean = (receipt.notes || "").replace(/\s*·\s*pay:[a-z_]+/i, "").trim();
+  // Pad to at least 3 rows so the grid still looks like the invoice
+  const padCount = Math.max(0, 3 - receipt.items.length);
+  const pads = Array.from({ length: padCount }, () =>
+    `<tr><td class="c desc">&nbsp;</td><td class="c qty">&nbsp;</td><td class="c price">&nbsp;</td><td class="c tot">&nbsp;</td></tr>`
+  ).join("");
 
   return `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>THE CLOVER Receipt #${shortId}</title>
+  <title>THE CLOVER Invoice ${inv}</title>
   <style>
-    @page {
-      size: ${paperMm}mm auto;
-      margin: 2mm;
-    }
-    * { box-sizing: border-box; }
+    @page { size: ${paperMm}mm auto; margin: 0; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
-      margin: 0;
-      padding: 0;
-      background: #fff;
-      color: #111;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
+      margin: 0; padding: 0; background: #fff; color: #000;
+      -webkit-print-color-adjust: exact; print-color-adjust: exact;
     }
     body {
-      font-family: "Helvetica Neue", Helvetica, "DejaVu Sans", Arial, sans-serif;
-      font-size: ${bodyFont}px;
-      line-height: 1.4;
-      width: ${contentW}mm;
-      max-width: 100%;
-      padding: 2mm;
-      margin: 0 auto;
-    }
-    .logo-wrap {
-      width: 48px; height: 48px; margin: 0 auto 8px;
-      border: 1px solid #222; border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-    }
-    .logo-wrap svg { display: block; }
-    .brand {
-      font-size: ${isNarrow ? 10 : 11}px;
-      letter-spacing: ${titleTrack};
-      text-transform: uppercase;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: ${body}px;
       font-weight: 700;
-      margin: 0;
+      line-height: 1.3;
+      width: ${printW}mm;
+      max-width: ${printW}mm;
+      padding: 2mm 1.5mm 4mm;
+      color: #000;
+      text-shadow: 0.3px 0 0 #000, -0.3px 0 0 #000;
+      -webkit-font-smoothing: none;
     }
-    .tag {
-      font-size: 8px;
-      letter-spacing: 0.28em;
-      text-transform: uppercase;
-      color: #666;
-      margin: 6px 0 0;
+    .hdr {
+      display: table; width: 100%; table-layout: fixed; margin-bottom: 8px;
     }
-    .ornament {
-      display: flex; align-items: center; gap: 8px;
-      margin: 10px 0 8px; color: #999; font-size: 7px; letter-spacing: 0.2em;
+    .hdr .col { display: table-cell; vertical-align: top; }
+    .hdr .logo { width: 38px; }
+    .hdr .brand { text-align: center; padding: 0 4px; }
+    .hdr .phones { width: 78px; text-align: right; font-size: ${small}px; font-weight: 800; }
+    .brand-name {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: ${brand}px; font-weight: 900;
+      letter-spacing: 0.06em; text-transform: uppercase;
     }
-    .ornament::before, .ornament::after {
-      content: ""; flex: 1; height: 1px; background: #ccc;
+    .brand-sub {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: ${small}px; font-style: italic; font-weight: 700; margin-top: 2px;
     }
-    .receipt-label {
-      font-size: 10px;
-      letter-spacing: 0.22em;
-      text-transform: uppercase;
-      color: #444;
-      margin: 0;
-      font-weight: 500;
-    }
-    .place { font-size: 9px; color: #777; margin: 4px 0 0; }
+    .phone-row { display: flex; justify-content: flex-end; align-items: flex-start; gap: 3px; }
     .meta {
-      display: flex; justify-content: space-between; gap: 8px;
-      font-size: 10px;
-      border-top: 3px double #111;
-      border-bottom: 3px double #111;
-      padding: 8px 0;
-      margin: 12px 0 4px;
+      display: table; width: 100%; table-layout: fixed; margin: 10px 0 8px;
+      font-size: ${small}px; font-weight: 800;
     }
-    .meta .lbl { font-size: 8px; letter-spacing: 0.16em; text-transform: uppercase; color: #888; }
-    .meta .val { margin-top: 2px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 4px; }
-    thead th {
-      font-size: 8px; letter-spacing: 0.18em; text-transform: uppercase;
-      color: #888; font-weight: 500; padding: 6px 0; text-align: left;
+    .meta .l, .meta .r { display: table-cell; vertical-align: top; }
+    .meta .l { width: 42%; }
+    .inv-lbl { text-transform: uppercase; letter-spacing: 0.04em; font-weight: 900; }
+    .inv-no { font-size: ${isNarrow ? 16 : 18}px; font-weight: 900; margin-top: 2px; }
+    .inv-when { font-size: ${small - 1}px; margin-top: 4px; font-weight: 700; }
+    .cust-line {
+      border-bottom: 1.5px solid #000; padding: 3px 0 2px; margin-bottom: 4px;
+      min-height: 14px;
     }
-    thead th:last-child { text-align: right; }
-    .total { border-top: 2px solid #111; padding-top: 10px; margin-top: 4px; }
-    .row { display: flex; justify-content: space-between; margin: 3px 0; font-size: 11px; color: #555; }
-    .grand {
-      display: flex; justify-content: space-between; align-items: baseline;
-      margin-top: 8px; padding-top: 8px; border-top: 1px solid #ddd;
+    .cust-line .k { text-transform: uppercase; font-weight: 900; margin-right: 4px; }
+    table.items {
+      width: 100%; border-collapse: collapse; table-layout: fixed;
+      border: 2px solid #000; margin-top: 4px;
     }
-    .grand .lbl { font-size: 9px; letter-spacing: 0.22em; text-transform: uppercase; font-weight: 700; }
-    .grand .amt { font-size: ${isNarrow ? 15 : 17}px; font-weight: 900; letter-spacing: -0.02em; }
-    .thanks { text-align: center; font-size: 10px; margin-top: 16px; color: #555; letter-spacing: 0.06em; }
-    .thanks-brand {
-      text-align: center; font-size: 9px; letter-spacing: 0.32em;
-      text-transform: uppercase; font-weight: 700; margin: 4px 0 0;
+    table.items th, table.items td {
+      border: 1.5px solid #000; padding: 4px 3px; font-weight: 800; vertical-align: top;
     }
-    .web { text-align: center; font-size: 8px; color: #999; margin-top: 10px; letter-spacing: 0.08em; }
+    table.items th {
+      font-size: ${small}px; text-transform: uppercase; letter-spacing: 0.03em;
+      font-family: Georgia, "Times New Roman", serif;
+    }
+    .col-d { width: 40%; } .col-q { width: 12%; } .col-p { width: 24%; } .col-t { width: 24%; }
+    th.qty, td.qty { text-align: center; }
+    th.price, td.price, th.tot, td.tot { text-align: right; white-space: nowrap; }
+    td.desc { text-align: left; word-wrap: break-word; overflow-wrap: anywhere; }
+    .dn { font-weight: 900; } .dm { font-size: ${small - 1}px; font-weight: 700; margin-top: 1px; }
+    .total-wrap { display: flex; justify-content: flex-end; }
+    .total-box {
+      width: 62%; border: 2px solid #000; border-top: none;
+      display: table; table-layout: fixed; font-weight: 900;
+    }
+    .total-box .a, .total-box .b { display: table-cell; padding: 6px 4px; vertical-align: middle; }
+    .total-box .a {
+      width: 48%; border-right: 2px solid #000; text-align: center;
+      font-size: ${small}px; text-transform: uppercase;
+      font-family: Georgia, "Times New Roman", serif;
+    }
+    .total-box .b { text-align: right; font-size: ${isNarrow ? 13 : 15}px; }
+    .note { margin-top: 8px; font-size: ${small}px; font-weight: 800; }
+    .foot {
+      display: table; width: 100%; margin-top: 14px; font-size: ${small - 1}px; font-weight: 800;
+    }
+    .foot .fl, .foot .fr { display: table-cell; vertical-align: top; }
+    .foot .fr { text-align: right; white-space: nowrap; }
+    .ico { display: inline-block; vertical-align: -1px; margin-right: 3px; }
     .hint {
-      text-align: center; font-size: 9px; color: #666; margin-top: 12px;
-      border-top: 1px dashed #ccc; padding-top: 8px;
+      text-align: center; font-size: 9px; font-weight: 800; margin-top: 10px;
+      border-top: 1.5px dashed #000; padding-top: 6px;
     }
     @media print {
       .hint { display: none !important; }
-      html, body { width: ${contentW}mm; }
+      html, body { width: ${printW}mm !important; max-width: ${printW}mm !important; }
     }
   </style>
 </head>
 <body>
-  <div style="text-align:center">
-    <div class="logo-wrap">${CLOVER_SVG_MARK}</div>
-    <p class="brand">THE CLOVER</p>
-    <p class="tag">Premium Sportswear</p>
-    <div class="ornament">◆</div>
-    <p class="receipt-label">Store Receipt</p>
-    <p class="place">${STORE_PLACE}</p>
+  <div class="hdr">
+    <div class="col logo">${CLOVER_SVG_MARK}</div>
+    <div class="col brand">
+      <div class="brand-name">THE CLOVER</div>
+      <div class="brand-sub">Sportswear</div>
+    </div>
+    <div class="col phones">
+      <div class="phone-row">
+        <span>${PHONE_SVG}</span>
+        <span>${STORE_PHONES.map((p) => escapeHtml(p)).join("<br/>")}</span>
+      </div>
+    </div>
   </div>
+
   <div class="meta">
-    <div>
-      <div class="lbl">Date</div>
-      <div class="val">${escapeHtml(when)}</div>
+    <div class="l">
+      <div class="inv-lbl">Invoice No:</div>
+      <div class="inv-no">${inv}</div>
+      <div class="inv-when">${escapeHtml(when)} · ${escapeHtml(pay)}</div>
     </div>
-    <div style="text-align:right">
-      <div class="lbl">No.</div>
-      <div class="val" style="font-family:ui-monospace,monospace;letter-spacing:0.06em">#${shortId}</div>
+    <div class="r">
+      <div class="cust-line"><span class="k">Name:</span>${name || "&nbsp;"}</div>
+      <div class="cust-line"><span class="k">Ph No:</span>${phone || "&nbsp;"}</div>
+      <div class="cust-line"><span class="k">Address:</span>${address || "&nbsp;"}</div>
     </div>
   </div>
-  <table>
-    <thead><tr><th>Item</th><th>Amount</th></tr></thead>
-    <tbody>${rows}</tbody>
+
+  <table class="items">
+    <colgroup>
+      <col class="col-d" /><col class="col-q" /><col class="col-p" /><col class="col-t" />
+    </colgroup>
+    <thead>
+      <tr>
+        <th class="desc">Description</th>
+        <th class="qty">Qty</th>
+        <th class="price">Price</th>
+        <th class="tot">Total</th>
+      </tr>
+    </thead>
+    <tbody>${rows}${pads}</tbody>
   </table>
-  <div class="total">
-    <div class="row"><span>Items</span><span>${units}</span></div>
-    <div class="row"><span>Payment</span><span>${escapeHtml(pay)}</span></div>
-    <div class="grand">
-      <span class="lbl">Total</span>
-      <span class="amt">${formatMMK(receipt.total)}</span>
+
+  <div class="total-wrap">
+    <div class="total-box">
+      <div class="a">Total Amount</div>
+      <div class="b">${formatMMK(receipt.total)}</div>
     </div>
   </div>
-  ${noteClean ? `<p style="font-size:10px;margin-top:12px;color:#555">Note: ${escapeHtml(noteClean)}</p>` : ""}
-  <div class="ornament">◆</div>
-  <p class="thanks">Thank you for shopping with us</p>
-  <p class="thanks-brand">THE CLOVER</p>
-  <p class="web">theclover.com</p>
-  <p class="hint">Choose your USB / Bluetooth / network printer · paper ${paperMm}mm</p>
+
+  ${note ? `<p class="note">Note: ${escapeHtml(note)}</p>` : ""}
+
+  <div class="foot">
+    <div class="fl"><span class="ico">${HOME_SVG}</span>${escapeHtml(STORE_ADDRESS)}</div>
+    <div class="fr"><span class="ico">${CHAT_SVG}</span>${escapeHtml(STORE_MESSENGER)}</div>
+  </div>
+
+  <p class="hint">XP-80C · ${paperMm}mm · scale 100% · margins None</p>
 </body>
 </html>`;
 }
@@ -453,18 +568,15 @@ function triggerPrintInDocument(doc: Document, win?: Window | null) {
       window.print();
     }
   };
-  // Images/SVG are inline — short delay lets layout settle on slow PCs
   setTimeout(run, 200);
 }
 
 /**
  * Print receipt on any PC printer (USB, Bluetooth, or network) via the OS print dialog.
- * Uses a popup when allowed; falls back to a hidden iframe if pop-ups are blocked.
  */
-export function printReceipt(receipt: ReceiptData, paperMm: PaperWidthMm = 56) {
+export function printReceipt(receipt: ReceiptData, paperMm: PaperWidthMm = 80) {
   const html = buildReceiptPrintHtml(receipt, paperMm);
 
-  // Do NOT pass "noopener" — it makes window.open return null and breaks printing.
   const win = window.open("", "_blank", "width=480,height=760");
   if (win) {
     try {
@@ -479,7 +591,6 @@ export function printReceipt(receipt: ReceiptData, paperMm: PaperWidthMm = 56) {
     return;
   }
 
-  // Pop-up blocked → iframe print (works on every PC browser that allows printing)
   const iframe = document.createElement("iframe");
   iframe.setAttribute("title", "Print receipt");
   iframe.setAttribute("aria-hidden", "true");
@@ -499,7 +610,6 @@ export function printReceipt(receipt: ReceiptData, paperMm: PaperWidthMm = 56) {
   idoc.close();
   triggerPrintInDocument(idoc, iframe.contentWindow);
 
-  // Clean up after print dialog closes (or after a long timeout)
   const cleanup = () => {
     try {
       document.body.removeChild(iframe);
@@ -516,16 +626,21 @@ function loadLogoImage(): Promise<HTMLImageElement | null> {
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => resolve(img);
-    img.onerror = () => resolve(null);
+    img.onerror = () => {
+      const svg = new Image();
+      svg.onload = () => resolve(svg);
+      svg.onerror = () => resolve(null);
+      svg.src = `${window.location.origin}/assets/logo-clover.svg`;
+    };
     img.src = `${window.location.origin}/assets/logo-icon.png`;
   });
 }
 
-/** Draw a simple clover from paths when the PNG fails to load. */
+/** Draw clover from official paths when image fails. */
 function drawCloverFallback(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number) {
   ctx.save();
-  ctx.strokeStyle = "#111";
-  ctx.lineWidth = Math.max(1.2, r * 0.06);
+  ctx.strokeStyle = "#000";
+  ctx.lineWidth = Math.max(1.4, r * 0.07);
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   const leaf = (ox: number, oy: number) => {
@@ -540,217 +655,229 @@ function drawCloverFallback(ctx: CanvasRenderingContext2D, cx: number, cy: numbe
   ctx.restore();
 }
 
-function drawOrnamentLine(
-  ctx: CanvasRenderingContext2D,
-  y: number,
-  widthPx: number,
-  pad: number,
-  size: number
-) {
-  const mid = widthPx / 2;
-  ctx.save();
-  ctx.strokeStyle = "#bbb";
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(pad, y + size / 2);
-  ctx.lineTo(mid - size * 1.2, y + size / 2);
-  ctx.moveTo(mid + size * 1.2, y + size / 2);
-  ctx.lineTo(widthPx - pad, y + size / 2);
-  ctx.stroke();
-  ctx.fillStyle = "#888";
-  ctx.font = `500 ${size}px Helvetica Neue, Arial, sans-serif`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText("◆", mid, y + size / 2);
-  ctx.restore();
-}
-
 /**
- * Download receipt as PNG for PeriPage mobile app (phone path).
- * A40 prints images reliably from the PeriPage app.
+ * PNG export for phone printers — same invoice layout, bold black.
  */
 export async function downloadReceiptPng(
   receipt: ReceiptData,
-  paperMm: PaperWidthMm = 56
+  paperMm: PaperWidthMm = 80
 ): Promise<File | null> {
   const dpi = 203;
-  const widthPx = Math.round((paperMm / 25.4) * dpi);
-  const pad = Math.round(widthPx * 0.07);
-  const lineH = Math.round(widthPx * 0.042);
-  const small = Math.round(widthPx * 0.03);
-  const brand = Math.round(widthPx * 0.038);
-  const totalSize = Math.round(widthPx * 0.052);
-  const logoSize = Math.round(widthPx * 0.18);
+  const printMm = printableWidthMm(paperMm);
+  const W = Math.round((printMm / 25.4) * dpi);
+  const pad = Math.round(W * 0.04);
+  const fs = Math.round(W * 0.038);
+  const fsSm = Math.round(W * 0.032);
+  const fsBrand = Math.round(W * 0.05);
+  const fsInv = Math.round(W * 0.055);
+  const logoSize = Math.round(W * 0.12);
+  const inv = invoiceNo(receipt.saleId);
+  const when = new Date(receipt.soldAt).toLocaleString();
+  const pay = PAY_LABELS[receipt.paymentMethod || "cash"] || "Cash";
+  const note = noteClean(receipt.notes);
+  const shortId = receipt.saleId.slice(0, 8).toUpperCase();
 
   const canvas = document.createElement("canvas");
-  canvas.width = widthPx;
+  canvas.width = W;
+  const rowH = Math.round(fs * 2.4);
+  const headerH = logoSize + 8;
+  const metaH = Math.round(fs * 7);
+  const tableHead = Math.round(fs * 1.8);
+  const itemRows = Math.max(3, receipt.items.length);
+  const tableH = tableHead + itemRows * rowH;
+  const totalH = Math.round(fs * 2.2);
+  const footH = Math.round(fs * 3);
+  const noteH = note ? Math.round(fs * 2) : 0;
+  canvas.height = pad * 2 + headerH + metaH + tableH + totalH + noteH + footH + 20;
 
-  type DrawOp =
-    | { kind: "gap"; h: number }
-    | { kind: "text"; text: string; size: number; weight: string; align: CanvasTextAlign; color?: string }
-    | { kind: "logo" }
-    | { kind: "ornament" }
-    | { kind: "rule"; style: "single" | "double" | "thick" };
-
-  const ops: DrawOp[] = [];
-  const text = (
-    t: string,
-    size = lineH,
-    weight = "400",
-    align: CanvasTextAlign = "left",
-    color = "#111"
-  ) => ops.push({ kind: "text", text: t, size, weight, align, color });
-  const gap = (h: number) => ops.push({ kind: "gap", h });
-
-  const when = new Date(receipt.soldAt).toLocaleString();
-  const shortId = receipt.saleId.slice(0, 8).toUpperCase();
-  const pay = PAY_LABELS[receipt.paymentMethod || "cash"] || "Cash";
-  const units = receipt.items.reduce((s, i) => s + i.quantity, 0);
-  const noteClean = (receipt.notes || "").replace(/\s*·\s*pay:[a-z_]+/i, "").trim();
-
-  ops.push({ kind: "logo" });
-  gap(Math.round(small * 0.6));
-  text("THE CLOVER", brand, "700", "center");
-  gap(Math.round(small * 0.35));
-  text("PREMIUM SPORTSWEAR", small, "500", "center", "#666");
-  gap(Math.round(small * 0.5));
-  ops.push({ kind: "ornament" });
-  gap(Math.round(small * 0.4));
-  text("STORE RECEIPT", small, "500", "center", "#444");
-  gap(Math.round(small * 0.25));
-  text(STORE_PLACE, small, "400", "center", "#777");
-  gap(Math.round(small * 0.7));
-  ops.push({ kind: "rule", style: "double" });
-  gap(Math.round(small * 0.45));
-  text(when, small, "400", "center", "#555");
-  text(`#${shortId}`, small, "500", "center");
-  gap(Math.round(small * 0.35));
-  ops.push({ kind: "rule", style: "double" });
-  gap(Math.round(small * 0.55));
-
-  for (const item of receipt.items) {
-    text(item.productName, lineH, "700");
-    text(
-      [item.productCode, item.colorName, `Sz ${item.size}`, `x${item.quantity}`]
-        .filter(Boolean)
-        .join(" · "),
-      small,
-      "400",
-      "left",
-      "#555"
-    );
-    text(`@ ${formatMMK(item.unitPrice)}`, small, "400", "left", "#777");
-    text(formatMMK(item.lineTotal), lineH, "700", "right");
-    gap(Math.round(small * 0.55));
-  }
-
-  ops.push({ kind: "rule", style: "thick" });
-  gap(Math.round(small * 0.45));
-  text(`Items          ${units}`, small, "400", "left", "#555");
-  text(`Payment     ${pay}`, small, "400", "left", "#555");
-  gap(Math.round(small * 0.35));
-  ops.push({ kind: "rule", style: "single" });
-  gap(Math.round(small * 0.4));
-  text(`TOTAL  ${formatMMK(receipt.total)}`, totalSize, "900", "center");
-  if (noteClean) {
-    gap(Math.round(small * 0.5));
-    text(`Note: ${noteClean}`, small, "400", "left", "#555");
-  }
-  gap(Math.round(small * 0.9));
-  ops.push({ kind: "ornament" });
-  gap(Math.round(small * 0.5));
-  text("Thank you for shopping with us", small, "400", "center", "#555");
-  gap(Math.round(small * 0.3));
-  text("THE CLOVER", small, "700", "center");
-  gap(Math.round(small * 0.45));
-  text("theclover.com", Math.round(small * 0.9), "400", "center", "#999");
-
-  const logo = await loadLogoImage();
   const ctx = canvas.getContext("2d");
   if (!ctx) {
     alert("Could not create receipt image");
     return null;
   }
 
-  let height = pad * 2;
-  for (const op of ops) {
-    if (op.kind === "gap") height += op.h;
-    else if (op.kind === "text") height += op.size * 1.4;
-    else if (op.kind === "logo") height += logoSize + Math.round(small * 0.4);
-    else if (op.kind === "ornament") height += small;
-    else if (op.kind === "rule") height += op.style === "double" ? 6 : 4;
-  }
-  canvas.height = Math.ceil(height);
-
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0, 0, W, canvas.height);
+  ctx.fillStyle = "#000";
+  ctx.strokeStyle = "#000";
   ctx.textBaseline = "top";
 
-  let y = pad;
-  for (const op of ops) {
-    if (op.kind === "gap") {
-      y += op.h;
-      continue;
-    }
-    if (op.kind === "logo") {
-      const lx = (widthPx - logoSize) / 2;
-      // Circle frame
-      ctx.strokeStyle = "#222";
-      ctx.lineWidth = Math.max(1, widthPx * 0.004);
-      ctx.beginPath();
-      ctx.arc(widthPx / 2, y + logoSize / 2, logoSize / 2 + 2, 0, Math.PI * 2);
-      ctx.stroke();
-      if (logo) {
-        ctx.drawImage(logo, lx, y, logoSize, logoSize);
-      } else {
-        drawCloverFallback(ctx, widthPx / 2, y + logoSize / 2, logoSize * 0.42);
-      }
-      y += logoSize + Math.round(small * 0.4);
-      continue;
-    }
-    if (op.kind === "ornament") {
-      drawOrnamentLine(ctx, y, widthPx, pad, small);
-      y += small;
-      continue;
-    }
-    if (op.kind === "rule") {
-      ctx.strokeStyle = "#111";
-      if (op.style === "thick") {
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(pad, y + 1);
-        ctx.lineTo(widthPx - pad, y + 1);
-        ctx.stroke();
-        y += 4;
-      } else if (op.style === "double") {
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(pad, y);
-        ctx.lineTo(widthPx - pad, y);
-        ctx.moveTo(pad, y + 3);
-        ctx.lineTo(widthPx - pad, y + 3);
-        ctx.stroke();
-        y += 6;
-      } else {
-        ctx.lineWidth = 1;
-        ctx.strokeStyle = "#ccc";
-        ctx.beginPath();
-        ctx.moveTo(pad, y + 1);
-        ctx.lineTo(widthPx - pad, y + 1);
-        ctx.stroke();
-        y += 4;
-      }
-      continue;
-    }
+  const bold = (size: number, weight = "800") => {
+    ctx.font = `${weight} ${size}px Arial, Helvetica, sans-serif`;
+  };
+  const serif = (size: number, weight = "700", italic = false) => {
+    ctx.font = `${italic ? "italic " : ""}${weight} ${size}px Georgia, "Times New Roman", serif`;
+  };
+  const strokeText = (t: string, x: number, y: number, maxW?: number) => {
+    ctx.fillText(t, x, y, maxW);
+    ctx.fillText(t, x + 0.5, y, maxW);
+  };
 
-    ctx.fillStyle = op.color || "#111";
-    ctx.font = `${op.weight} ${op.size}px Helvetica Neue, DejaVu Sans, Arial, sans-serif`;
-    ctx.textAlign = op.align;
-    const x =
-      op.align === "center" ? widthPx / 2 : op.align === "right" ? widthPx - pad : pad;
-    ctx.fillText(op.text, x, y, widthPx - pad * 2);
-    y += op.size * 1.4;
+  const logo = await loadLogoImage();
+  let y = pad;
+
+  // Header
+  if (logo) {
+    ctx.drawImage(logo, pad, y, logoSize, logoSize);
+  } else {
+    drawCloverFallback(ctx, pad + logoSize / 2, y + logoSize / 2, logoSize * 0.42);
   }
+  serif(fsBrand, "900");
+  ctx.textAlign = "center";
+  strokeText("THE CLOVER", W / 2, y + 4);
+  serif(fsSm, "700", true);
+  strokeText("Sportswear", W / 2, y + 4 + fsBrand + 2);
+
+  bold(fsSm, "800");
+  ctx.textAlign = "right";
+  let py = y + 2;
+  for (const p of STORE_PHONES) {
+    strokeText(p, W - pad, py);
+    py += fsSm + 2;
+  }
+
+  y += headerH + 10;
+
+  // Meta
+  bold(fsSm, "900");
+  ctx.textAlign = "left";
+  strokeText("INVOICE NO:", pad, y);
+  bold(fsInv, "900");
+  strokeText(inv, pad, y + fsSm + 4);
+  bold(fsSm - 1, "700");
+  strokeText(`${when} · ${pay}`, pad, y + fsSm + 4 + fsInv + 4, W * 0.42);
+
+  const custX = W * 0.45;
+  const custW = W - pad - custX;
+  const custLines: [string, string][] = [
+    ["NAME:", receipt.customerName?.trim() || ""],
+    ["PH NO:", receipt.customerPhone?.trim() || ""],
+    ["ADDRESS:", receipt.customerAddress?.trim() || ""],
+  ];
+  let cy = y;
+  for (const [k, v] of custLines) {
+    bold(fsSm, "900");
+    ctx.textAlign = "left";
+    strokeText(k, custX, cy);
+    const kx = custX + ctx.measureText(k + " ").width;
+    bold(fsSm, "700");
+    strokeText(v, kx, cy, custW - (kx - custX));
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(custX, cy + fsSm + 3);
+    ctx.lineTo(W - pad, cy + fsSm + 3);
+    ctx.stroke();
+    cy += fsSm + 10;
+  }
+
+  y += metaH;
+
+  // Table
+  const cols = [
+    { key: "d", x: pad, w: (W - pad * 2) * 0.4 },
+    { key: "q", x: 0, w: (W - pad * 2) * 0.12 },
+    { key: "p", x: 0, w: (W - pad * 2) * 0.24 },
+    { key: "t", x: 0, w: (W - pad * 2) * 0.24 },
+  ];
+  cols[1].x = cols[0].x + cols[0].w;
+  cols[2].x = cols[1].x + cols[1].w;
+  cols[3].x = cols[2].x + cols[2].w;
+
+  const tableX = pad;
+  const tableW = W - pad * 2;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(tableX, y, tableW, tableH);
+
+  // header row
+  serif(fsSm, "800");
+  ctx.textAlign = "left";
+  strokeText("DESCRIPTION", cols[0].x + 3, y + 5, cols[0].w - 6);
+  ctx.textAlign = "center";
+  strokeText("QTY", cols[1].x + cols[1].w / 2, y + 5);
+  ctx.textAlign = "right";
+  strokeText("PRICE", cols[2].x + cols[2].w - 3, y + 5);
+  strokeText("TOTAL", cols[3].x + cols[3].w - 3, y + 5);
+
+  // vertical + header line
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(tableX, y + tableHead);
+  ctx.lineTo(tableX + tableW, y + tableHead);
+  for (let i = 1; i < 4; i++) {
+    ctx.moveTo(cols[i].x, y);
+    ctx.lineTo(cols[i].x, y + tableH);
+  }
+  ctx.stroke();
+
+  const lines = [...receipt.items];
+  while (lines.length < 3) {
+    lines.push({
+      productName: "",
+      colorName: "",
+      size: "",
+      quantity: 0,
+      unitPrice: 0,
+      lineTotal: 0,
+    });
+  }
+
+  lines.forEach((line, i) => {
+    const ry = y + tableHead + i * rowH;
+    ctx.beginPath();
+    ctx.moveTo(tableX, ry);
+    ctx.lineTo(tableX + tableW, ry);
+    ctx.stroke();
+    if (!line.productName) return;
+    bold(fsSm, "800");
+    ctx.textAlign = "left";
+    strokeText(line.productName, cols[0].x + 3, ry + 4, cols[0].w - 6);
+    const meta = [line.colorName, line.size ? `Sz ${line.size}` : null]
+      .filter(Boolean)
+      .join(" · ");
+    if (meta) {
+      bold(fsSm - 2, "700");
+      strokeText(meta, cols[0].x + 3, ry + 4 + fsSm, cols[0].w - 6);
+    }
+    bold(fsSm, "800");
+    ctx.textAlign = "center";
+    strokeText(String(line.quantity), cols[1].x + cols[1].w / 2, ry + 6);
+    ctx.textAlign = "right";
+    strokeText(formatMMK(line.unitPrice), cols[2].x + cols[2].w - 3, ry + 6);
+    strokeText(formatMMK(line.lineTotal), cols[3].x + cols[3].w - 3, ry + 6);
+  });
+
+  y += tableH;
+
+  // Total box
+  const boxW = tableW * 0.62;
+  const boxX = tableX + tableW - boxW;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(boxX, y, boxW, totalH);
+  ctx.beginPath();
+  ctx.moveTo(boxX + boxW * 0.48, y);
+  ctx.lineTo(boxX + boxW * 0.48, y + totalH);
+  ctx.stroke();
+  serif(fsSm, "800");
+  ctx.textAlign = "center";
+  strokeText("TOTAL AMOUNT", boxX + boxW * 0.24, y + totalH / 2 - fsSm / 2);
+  bold(fs + 2, "900");
+  ctx.textAlign = "right";
+  strokeText(formatMMK(receipt.total), boxX + boxW - 4, y + totalH / 2 - (fs + 2) / 2);
+
+  y += totalH + 8;
+  if (note) {
+    bold(fsSm, "800");
+    ctx.textAlign = "left";
+    strokeText(`Note: ${note}`, pad, y, W - pad * 2);
+    y += noteH;
+  }
+
+  y += 8;
+  bold(fsSm - 1, "800");
+  ctx.textAlign = "left";
+  strokeText(STORE_ADDRESS, pad + 14, y, W * 0.55);
+  ctx.textAlign = "right";
+  strokeText(STORE_MESSENGER, W - pad, y);
 
   const blob = await new Promise<Blob | null>((resolve) =>
     canvas.toBlob((b) => resolve(b), "image/png")
@@ -768,7 +895,7 @@ export async function downloadReceiptPng(
       await navigator.share({
         files: [file],
         title: "THE CLOVER receipt",
-        text: `Receipt #${shortId}`,
+        text: `Invoice ${inv}`,
       });
       return file;
     } catch (err) {

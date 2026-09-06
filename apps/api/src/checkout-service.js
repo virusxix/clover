@@ -1,8 +1,8 @@
 /**
  * Checkout service
  * ----------------
- * One job: place an order from the cart and deduct WEBSITE inventory.
- * Uses inventory_levels (shared ledger with physical store + ICONIC).
+ * Place an order from the cart, deduct WEBSITE inventory, record payment method.
+ * New orders start as `pending` so reception can package them.
  */
 
 import crypto from "crypto";
@@ -12,12 +12,26 @@ import { getEffectivePriceMmk } from "./sale-pricing.js";
 import { getSaleDiscountPercent } from "./store-settings.js";
 import { LOCATIONS } from "./inventory/locations.js";
 import { adjustStock, getQty } from "./inventory/stock-service.js";
+import { WEB_PAYMENT_METHODS, isMandalayArea } from "./payments.js";
 
-export function createMockPaymentRef() {
-  return `mock_pay_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
+export function createPaymentRef(method) {
+  return `${method}_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
 }
 
-export async function placeOrder({ userId, shipping }) {
+/**
+ * @param {{ userId: string, shipping: object, paymentMethod: string }}
+ */
+export async function placeOrder({ userId, shipping, paymentMethod }) {
+  if (!WEB_PAYMENT_METHODS.includes(paymentMethod)) {
+    throw clientError(400, "Invalid payment method");
+  }
+  if (paymentMethod === "cod" && !isMandalayArea(shipping.city, shipping.state)) {
+    throw clientError(
+      400,
+      "Cash on delivery is only available for Mandalay area addresses"
+    );
+  }
+
   const client = await getPool().then((p) => p.connect());
 
   try {
@@ -33,12 +47,13 @@ export async function placeOrder({ userId, shipping }) {
 
     const salePercent = await getSaleDiscountPercent();
     const totals = buildTotals(cartRows, salePercent);
-    const paymentRef = createMockPaymentRef();
+    const paymentRef = createPaymentRef(paymentMethod);
     const orderId = await insertOrder(client, {
       userId,
       shipping,
       totals,
       paymentRef,
+      paymentMethod,
     });
 
     await insertItemsAndDecrementWebsiteStock(client, orderId, cartRows, salePercent);
@@ -49,8 +64,12 @@ export async function placeOrder({ userId, shipping }) {
     return {
       orderId,
       paymentRef,
+      paymentMethod,
       total: totals.total,
-      message: "Order placed successfully (mock payment — no card charged)",
+      message:
+        paymentMethod === "cod"
+          ? "Order placed — pay cash on delivery"
+          : "Order placed — awaiting packaging",
     };
   } catch (err) {
     await client.query("ROLLBACK").catch(() => {});
@@ -94,14 +113,15 @@ function buildTotals(cartRows, salePercent) {
   return computeOrderTotals(subtotalMmk);
 }
 
-async function insertOrder(client, { userId, shipping, totals, paymentRef }) {
+async function insertOrder(client, { userId, shipping, totals, paymentRef, paymentMethod }) {
   const sh = shipping;
   const { rows } = await client.query(
     `INSERT INTO orders (
        user_id, status, subtotal_cents, shipping_cents, tax_cents, total_cents,
        shipping_name, shipping_line1, shipping_line2, shipping_city,
-       shipping_state, shipping_zip, shipping_country, payment_ref
-     ) VALUES ($1,'processing',$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+       shipping_state, shipping_zip, shipping_country, payment_ref,
+       payment_method, shipping_phone
+     ) VALUES ($1,'pending',$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
      RETURNING id`,
     [
       userId,
@@ -117,6 +137,8 @@ async function insertOrder(client, { userId, shipping, totals, paymentRef }) {
       sh.zip,
       sh.country,
       paymentRef,
+      paymentMethod,
+      sh.phone || null,
     ]
   );
   return rows[0].id;

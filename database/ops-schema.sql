@@ -124,6 +124,11 @@ CREATE TABLE IF NOT EXISTS iconic_sales_report_items (
 
 CREATE INDEX IF NOT EXISTS idx_iconic_reports_month ON iconic_sales_reports(report_month DESC);
 
+-- Website order payment + phone (reception / packaging)
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_method VARCHAR(32);
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_phone VARCHAR(32);
+CREATE INDEX IF NOT EXISTS idx_orders_created ON orders(created_at DESC);
+
 -- Categories: flare / biker pants; retire hoodies from seed (soft — keep FK if used)
 INSERT INTO categories (id, label, sort_order) VALUES
   ('flare-pants', 'Flare Pants', 8),

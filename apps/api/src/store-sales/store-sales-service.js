@@ -177,6 +177,6 @@ export async function getStoreSaleById(db, saleId) {
 }
 
 function parsePayMethod(notes) {
-  const m = String(notes || "").match(/pay:([a-z_]+)/i);
+  const m = String(notes || "").match(/pay:([a-z0-9_]+)/i);
   return m ? m[1] : "cash";
 }

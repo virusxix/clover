@@ -102,7 +102,7 @@ export function OrderSummaryCard({ items, totals, loading, showSubmit = false }:
           <span>Total</span>
           <span>{formatMMK(totals.total)}</span>
         </div>
-        <p className="text-[10px] text-soul-muted pt-1">MMK · Demo checkout</p>
+        <p className="text-[10px] text-soul-muted pt-1">MMK · Myanmar delivery</p>
       </div>
 
       {showSubmit && (

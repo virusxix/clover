@@ -16,6 +16,7 @@ import { AdminStoreTab } from "@/components/admin/AdminStoreTab";
 import { AdminIconicTab } from "@/components/admin/AdminIconicTab";
 import { AdminOrdersTab, type AdminOrder } from "@/components/admin/AdminOrdersTab";
 import { AdminUsersTab, type AdminUser } from "@/components/admin/AdminUsersTab";
+import { ReceptionOrderAlerts } from "@/components/admin/ReceptionOrderAlerts";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { api } from "@/lib/api";
 import { formatMMK } from "@/lib/currency";
@@ -98,6 +99,13 @@ export default function AdminPage() {
     if (tab === "users") loadUsers();
   }, [tab, user]);
 
+  // Refresh orders list while the Orders tab is open
+  useEffect(() => {
+    if (user?.role !== "admin" || tab !== "orders") return;
+    const id = window.setInterval(loadOrders, 10000);
+    return () => window.clearInterval(id);
+  }, [tab, user]);
+
   const updateStatus = async (orderId: string, status: string) => {
     await api(`/api/admin/orders/${orderId}/status`, { method: "PATCH", json: { status } });
     setOrders((prev) =>
@@ -112,6 +120,8 @@ export default function AdminPage() {
       <h1 className="text-xl sm:text-3xl font-black tracking-tight mb-4 sm:mb-6">
         THE CLOVER · Admin
       </h1>
+
+      <ReceptionOrderAlerts />
 
       <div className="flex gap-2 mb-6 sm:mb-8 overflow-x-auto pb-1 -mx-3 px-3 sm:mx-0 sm:px-0 scrollbar-none snap-x snap-mandatory">
         {TABS.map((tabItem) => (

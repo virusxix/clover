@@ -442,6 +442,97 @@ router.get("/orders", async (_req, res) => {
   res.json({ orders: rows });
 });
 
+/**
+ * GET /api/admin/orders/feed?since=ISO
+ * Reception poll — new website orders since timestamp (default last 15 min).
+ */
+router.get("/orders/feed", async (req, res) => {
+  const sinceRaw = typeof req.query.since === "string" ? req.query.since : "";
+  const since = sinceRaw && !Number.isNaN(Date.parse(sinceRaw))
+    ? new Date(sinceRaw)
+    : new Date(Date.now() - 15 * 60 * 1000);
+
+  try {
+    const { rows } = await query(
+      `SELECT o.id, o.status, o.total_cents, o.payment_method, o.shipping_name,
+              o.shipping_phone, o.shipping_city, o.shipping_state, o.created_at,
+              u.email, u.full_name
+       FROM orders o
+       JOIN users u ON u.id = o.user_id
+       WHERE o.created_at > $1
+       ORDER BY o.created_at ASC
+       LIMIT 50`,
+      [since.toISOString()]
+    );
+    res.json({
+      serverTime: new Date().toISOString(),
+      orders: rows.map((o) => ({
+        id: o.id,
+        status: o.status,
+        totalCents: o.total_cents,
+        paymentMethod: o.payment_method,
+        shippingName: o.shipping_name,
+        shippingPhone: o.shipping_phone,
+        city: o.shipping_city,
+        state: o.shipping_state,
+        email: o.email,
+        fullName: o.full_name,
+        createdAt: o.created_at,
+      })),
+    });
+  } catch (err) {
+    console.error("[admin/orders/feed]", err);
+    res.status(500).json({ error: "Failed to load order feed" });
+  }
+});
+
+/**
+ * GET /api/admin/orders/:id/receipt — print-ready payload for XP-80C
+ */
+router.get("/orders/:id/receipt", async (req, res) => {
+  try {
+    const { rows: orders } = await query(
+      `SELECT o.*, u.email, u.full_name
+       FROM orders o JOIN users u ON u.id = o.user_id
+       WHERE o.id = $1`,
+      [req.params.id]
+    );
+    if (!orders.length) return res.status(404).json({ error: "Order not found" });
+
+    const o = orders[0];
+    const { rows: items } = await query(
+      `SELECT product_name, variant_name, size, quantity, unit_price_cents
+       FROM order_items WHERE order_id = $1 ORDER BY product_name`,
+      [o.id]
+    );
+
+    res.json({
+      saleId: o.id,
+      soldAt: o.created_at,
+      total: o.total_cents,
+      paymentMethod: o.payment_method || "card",
+      notes: `Web order · ${o.shipping_city || ""}${o.shipping_state ? `, ${o.shipping_state}` : ""}`,
+      customerName: o.shipping_name || o.full_name || "",
+      customerPhone: o.shipping_phone || "",
+      customerAddress: [o.shipping_line1, o.shipping_line2, o.shipping_city, o.shipping_state]
+        .filter(Boolean)
+        .join(", "),
+      items: items.map((i) => ({
+        productName: i.product_name,
+        productCode: null,
+        colorName: i.variant_name,
+        size: i.size,
+        quantity: i.quantity,
+        unitPrice: i.unit_price_cents,
+        lineTotal: i.unit_price_cents * i.quantity,
+      })),
+    });
+  } catch (err) {
+    console.error("[admin/orders/:id/receipt]", err);
+    res.status(500).json({ error: "Failed to load receipt" });
+  }
+});
+
 router.patch("/orders/:id/status", async (req, res) => {
   const status = z.enum(["pending", "processing", "shipped", "delivered", "cancelled"]).parse(
     req.body.status

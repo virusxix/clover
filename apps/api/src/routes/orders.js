@@ -23,12 +23,11 @@ const checkoutSchema = z.object({
     state: z.string().min(2),
     zip: z.string().min(3),
     country: z.string().length(2).default("MM"),
+    phone: z.string().min(6).max(32).optional(),
   }),
-  payment: z
-    .object({
-      method: z.enum(["mock"]).default("mock"),
-    })
-    .default({ method: "mock" }),
+  payment: z.object({
+    method: z.enum(["cod", "kbzpay", "card"]),
+  }),
 });
 
 router.use(requireAuth);
@@ -89,7 +88,9 @@ router.get("/:id", async (req, res) => {
           state: o.shipping_state,
           zip: o.shipping_zip,
           country: o.shipping_country,
+          phone: o.shipping_phone || null,
         },
+        paymentMethod: o.payment_method || null,
         createdAt: o.created_at,
       },
       items: items.map((i) => ({
@@ -106,7 +107,7 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-/** POST /api/orders/checkout — mock pay + create order from cart */
+/** POST /api/orders/checkout — create order from cart */
 router.post("/checkout", async (req, res) => {
   const parsed = checkoutSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -117,6 +118,7 @@ router.post("/checkout", async (req, res) => {
     const result = await placeOrder({
       userId: req.user.id,
       shipping: parsed.data.shipping,
+      paymentMethod: parsed.data.payment.method,
     });
     res.status(201).json(result);
   } catch (err) {

@@ -3,7 +3,7 @@
 /**
  * Checkout form
  * -------------
- * One job: collect shipping, submit mock checkout, redirect to confirmation.
+ * One job: collect shipping + payment, place order, redirect to confirmation.
  * Order summary UI lives in OrderSummaryCard.
  */
 
@@ -20,6 +20,11 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { MM_REGIONS, computeOrderTotals } from "@/lib/checkout";
 import { formatMMK } from "@/lib/currency";
+import {
+  WEB_PAYMENT_METHODS,
+  isMandalayArea,
+  type WebPaymentMethod,
+} from "@/lib/payments";
 
 const inputClass =
   "w-full px-4 py-3 rounded-xl border border-black/10 bg-white/70 text-sm focus:outline-none focus:ring-2 focus:ring-black/15 min-h-[48px]";
@@ -34,8 +39,16 @@ export function CheckoutForm() {
   const [cartError, setCartError] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<WebPaymentMethod>("kbzpay");
+  const [city, setCity] = useState("");
+  const [stateRegion, setStateRegion] = useState("");
 
   const totals = useMemo(() => computeOrderTotals(subtotal), [subtotal]);
+  const codOk = isMandalayArea(city, stateRegion);
+
+  useEffect(() => {
+    if (paymentMethod === "cod" && !codOk) setPaymentMethod("kbzpay");
+  }, [paymentMethod, codOk]);
 
   // Guests must sign in before checkout.
   useEffect(() => {
@@ -65,6 +78,11 @@ export function CheckoutForm() {
     e.preventDefault();
     if (!items.length) return;
 
+    if (paymentMethod === "cod" && !codOk) {
+      setError("Cash on delivery is only available for Mandalay area addresses.");
+      return;
+    }
+
     setSubmitting(true);
     setError("");
     const fd = new FormData(e.currentTarget);
@@ -75,6 +93,7 @@ export function CheckoutForm() {
         json: {
           shipping: {
             name: fd.get("name"),
+            phone: String(fd.get("phone") || "").trim() || undefined,
             line1: fd.get("line1"),
             line2: fd.get("line2") || undefined,
             city: fd.get("city"),
@@ -82,7 +101,7 @@ export function CheckoutForm() {
             zip: fd.get("zip"),
             country: "MM",
           },
-          payment: { method: "mock" },
+          payment: { method: paymentMethod },
         },
       });
       router.push(`/order-confirmation?id=${res.orderId}`);
@@ -131,7 +150,7 @@ export function CheckoutForm() {
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2 mb-6 sm:mb-8">
         <div>
           <h1 className="text-2xl sm:text-3xl font-black tracking-tight">Checkout</h1>
-          <p className="text-sm text-soul-muted mt-1">Demo checkout · THE CLOVER</p>
+          <p className="text-sm text-soul-muted mt-1">Delivery across Myanmar · THE CLOVER</p>
         </div>
         <Link
           href="/cart"
@@ -182,11 +201,12 @@ export function CheckoutForm() {
                   className={inputClass}
                 />
               </Field>
-              <Field label="Phone (optional)" id="phone">
+              <Field label="Phone" id="phone" required>
                 <input
                   id="phone"
                   name="phone"
                   type="tel"
+                  required
                   autoComplete="tel"
                   placeholder="09…"
                   className={inputClass}
@@ -203,7 +223,15 @@ export function CheckoutForm() {
 
             <div className="grid sm:grid-cols-3 gap-4">
               <Field label="City" id="city" required>
-                <input id="city" name="city" required autoComplete="address-level2" className={inputClass} />
+                <input
+                  id="city"
+                  name="city"
+                  required
+                  autoComplete="address-level2"
+                  className={inputClass}
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                />
               </Field>
               <Field label="State / Region" id="state" required>
                 <input
@@ -212,8 +240,10 @@ export function CheckoutForm() {
                   required
                   list="mm-regions"
                   autoComplete="address-level1"
-                  placeholder="Yangon"
+                  placeholder="Mandalay"
                   className={inputClass}
+                  value={stateRegion}
+                  onChange={(e) => setStateRegion(e.target.value)}
                 />
                 <datalist id="mm-regions">
                   {MM_REGIONS.map((region) => (
@@ -239,12 +269,50 @@ export function CheckoutForm() {
 
           <GlassCard className="p-5 sm:p-6 space-y-4">
             <SectionTitle>Payment</SectionTitle>
-            <div className="rounded-xl border-2 border-black bg-black/5 p-4">
-              <p className="font-semibold text-sm">Mock payment</p>
-              <p className="text-xs text-soul-muted mt-1 leading-relaxed">
-                No card numbers are collected or stored. This places a demo order only — nothing is
-                charged.
-              </p>
+            <div className="space-y-2">
+              {WEB_PAYMENT_METHODS.map((m) => {
+                const disabled = m.id === "cod" && !codOk;
+                return (
+                  <label
+                    key={m.id}
+                    className={`flex items-start gap-3 rounded-xl border-2 p-4 cursor-pointer transition-colors ${
+                      paymentMethod === m.id
+                        ? "border-black bg-black/5"
+                        : "border-black/10 bg-white/60"
+                    } ${disabled ? "opacity-45 cursor-not-allowed" : ""}`}
+                  >
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      className="mt-1"
+                      checked={paymentMethod === m.id}
+                      disabled={disabled}
+                      onChange={() => setPaymentMethod(m.id)}
+                    />
+                    <span className="min-w-0">
+                      <span className="block font-semibold text-sm">{m.label}</span>
+                      {"hint" in m && m.hint && (
+                        <span className="block text-xs text-soul-muted mt-0.5">{m.hint}</span>
+                      )}
+                      {m.id === "cod" && !codOk && (
+                        <span className="block text-xs text-amber-800 mt-0.5">
+                          Enter a Mandalay city/region to enable COD.
+                        </span>
+                      )}
+                      {m.id === "kbzpay" && (
+                        <span className="block text-xs text-soul-muted mt-0.5">
+                          Pay via KBZPay after placing the order — our team will confirm.
+                        </span>
+                      )}
+                      {m.id === "card" && (
+                        <span className="block text-xs text-soul-muted mt-0.5">
+                          Card payment arranged with our team after the order is placed.
+                        </span>
+                      )}
+                    </span>
+                  </label>
+                );
+              })}
             </div>
           </GlassCard>
 

@@ -3,12 +3,15 @@
 /**
  * Admin orders list
  * -----------------
- * Search, status filter, pagination — compact rows for large order volumes.
+ * Recent website orders — start packaging, advance status, see payment method.
  */
 
 import { useMemo, useState } from "react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { formatMMK } from "@/lib/currency";
+import { PAYMENT_LABELS } from "@/lib/payments";
+import { loadPaperWidth, printReceipt, type ReceiptData } from "@/components/admin/pos/PosReceipt";
+import { api } from "@/lib/api";
 
 const PAGE_SIZE = 12;
 const STATUSES = ["pending", "processing", "shipped", "delivered", "cancelled"] as const;
@@ -21,6 +24,10 @@ export type AdminOrder = {
   total_cents: number;
   created_at?: string;
   shipping_name?: string;
+  shipping_phone?: string | null;
+  shipping_city?: string;
+  shipping_state?: string;
+  payment_method?: string | null;
 };
 
 type Props = {
@@ -41,26 +48,34 @@ function formatDate(raw?: string) {
   if (!raw) return "—";
   const d = new Date(raw);
   if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString("en-GB", {
+  return d.toLocaleString("en-GB", {
     day: "2-digit",
     month: "short",
-    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   });
 }
 
 export function AdminOrdersTab({ orders, onStatusChange }: Props) {
   const [q, setQ] = useState("");
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState("pending");
   const [page, setPage] = useState(1);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [printId, setPrintId] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
-    const list = dedupeOrders(orders);
+    const list = dedupeOrders(orders).sort((a, b) => {
+      const ta = a.created_at ? Date.parse(a.created_at) : 0;
+      const tb = b.created_at ? Date.parse(b.created_at) : 0;
+      return tb - ta;
+    });
     const needle = q.trim().toLowerCase();
     return list.filter((o) => {
       if (status && o.status !== status) return false;
       if (!needle) return true;
-      const hay = `${o.id} ${o.email || ""} ${o.full_name || ""} ${o.shipping_name || ""}`.toLowerCase();
+      const hay = `${o.id} ${o.email || ""} ${o.full_name || ""} ${o.shipping_name || ""} ${
+        o.payment_method || ""
+      }`.toLowerCase();
       return hay.includes(needle);
     });
   }, [orders, q, status]);
@@ -90,16 +105,33 @@ export function AdminOrdersTab({ orders, onStatusChange }: Props) {
     }
   };
 
+  const printOrder = async (id: string) => {
+    setPrintId(id);
+    try {
+      const receipt = await api<ReceiptData>(`/api/admin/orders/${id}/receipt`);
+      printReceipt(receipt, loadPaperWidth());
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Could not print receipt");
+    } finally {
+      setPrintId(null);
+    }
+  };
+
   const field =
     "w-full px-3 py-2.5 rounded-xl border border-black/10 text-sm min-h-[44px] bg-white/70";
 
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2">
-        <h2 className="text-base sm:text-lg font-black tracking-tight">
-          Orders
-          <span className="text-soul-muted font-semibold text-sm ml-2">{filtered.length}</span>
-        </h2>
+        <div>
+          <h2 className="text-base sm:text-lg font-black tracking-tight">
+            Orders
+            <span className="text-soul-muted font-semibold text-sm ml-2">{filtered.length}</span>
+          </h2>
+          <p className="text-xs text-soul-muted mt-1">
+            New website orders arrive as <strong>pending</strong> — start packaging, then ship.
+          </p>
+        </div>
       </div>
 
       <GlassCard className="p-3 sm:p-4 space-y-3">
@@ -111,7 +143,7 @@ export function AdminOrdersTab({ orders, onStatusChange }: Props) {
               setQ(e.target.value);
               setPage(1);
             }}
-            placeholder="Search email, name, or order id…"
+            placeholder="Search email, name, payment, or order id…"
             className={`${field} flex-1`}
             autoComplete="off"
           />
@@ -157,48 +189,97 @@ export function AdminOrdersTab({ orders, onStatusChange }: Props) {
                 status === s ? "bg-black text-white border-black" : "border-black/10 text-soul-muted"
               }`}
             >
-              {s}
+              {s} ({counts[s] || 0})
             </button>
           ))}
         </div>
-        <p className="text-[11px] text-soul-muted">
-          Showing {pageItems.length ? (safePage - 1) * PAGE_SIZE + 1 : 0}–
-          {(safePage - 1) * PAGE_SIZE + pageItems.length} · page {safePage}/{totalPages}
-        </p>
       </GlassCard>
 
       <div className="space-y-2">
-        {pageItems.map((o) => (
-          <GlassCard key={o.id} className="p-3 sm:p-4">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-              <div className="min-w-0 flex-1">
-                <p className="font-semibold text-sm truncate">
-                  {o.full_name || o.shipping_name || o.email || "Customer"}
-                </p>
-                <p className="text-xs text-soul-muted mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5">
-                  <span className="font-mono">#{o.id.slice(0, 8)}</span>
-                  {o.email && <span className="break-all">{o.email}</span>}
-                  <span>{formatDate(o.created_at)}</span>
-                </p>
+        {pageItems.map((o) => {
+          const pay = PAYMENT_LABELS[o.payment_method || ""] || o.payment_method || "—";
+          const place = [o.shipping_city, o.shipping_state].filter(Boolean).join(", ");
+          return (
+            <GlassCard key={o.id} className="p-3 sm:p-4">
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col sm:flex-row sm:items-start gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-sm truncate">
+                      {o.shipping_name || o.full_name || o.email || "Customer"}
+                    </p>
+                    <p className="text-xs text-soul-muted mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5">
+                      <span className="font-mono">#{o.id.slice(0, 8)}</span>
+                      {o.email && <span className="break-all">{o.email}</span>}
+                      {o.shipping_phone && <span>{o.shipping_phone}</span>}
+                      <span>{formatDate(o.created_at)}</span>
+                    </p>
+                    <p className="text-xs mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
+                      <span className="font-bold uppercase tracking-wide text-[10px]">{pay}</span>
+                      {place && <span className="text-soul-muted">{place}</span>}
+                      <span
+                        className={`uppercase tracking-wide text-[10px] font-bold ${
+                          o.status === "pending"
+                            ? "text-amber-800"
+                            : o.status === "processing"
+                              ? "text-sky-800"
+                              : "text-soul-muted"
+                        }`}
+                      >
+                        {o.status}
+                      </span>
+                    </p>
+                  </div>
+                  <p className="font-bold text-sm sm:text-base shrink-0 tabular-nums">
+                    {formatMMK(Number(o.total_cents) || 0)}
+                  </p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                  {o.status === "pending" && (
+                    <button
+                      type="button"
+                      disabled={savingId === o.id}
+                      onClick={() => changeStatus(o.id, "processing")}
+                      className="btn-soul--dark rounded-full px-4 min-h-[44px] text-[10px] disabled:opacity-50"
+                    >
+                      {savingId === o.id ? "Updating…" : "Start packaging"}
+                    </button>
+                  )}
+                  {o.status === "processing" && (
+                    <button
+                      type="button"
+                      disabled={savingId === o.id}
+                      onClick={() => changeStatus(o.id, "shipped")}
+                      className="btn-soul--dark rounded-full px-4 min-h-[44px] text-[10px] disabled:opacity-50"
+                    >
+                      Mark shipped
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    disabled={printId === o.id}
+                    onClick={() => void printOrder(o.id)}
+                    className="px-4 py-2 rounded-full text-[10px] font-bold uppercase border border-black/10 min-h-[44px] disabled:opacity-50"
+                  >
+                    {printId === o.id ? "Printing…" : "Print receipt"}
+                  </button>
+                  <select
+                    value={o.status}
+                    disabled={savingId === o.id}
+                    onChange={(e) => changeStatus(o.id, e.target.value)}
+                    className="w-full sm:w-40 text-xs px-3 py-2.5 rounded-xl border border-black/10 bg-white/60 min-h-[44px] capitalize disabled:opacity-50 sm:ml-auto"
+                  >
+                    {STATUSES.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
-              <p className="font-bold text-sm sm:text-base shrink-0 tabular-nums">
-                {formatMMK(Number(o.total_cents) || 0)}
-              </p>
-              <select
-                value={o.status}
-                disabled={savingId === o.id}
-                onChange={(e) => changeStatus(o.id, e.target.value)}
-                className="w-full sm:w-40 text-xs px-3 py-2.5 rounded-xl border border-black/10 bg-white/60 min-h-[44px] capitalize disabled:opacity-50"
-              >
-                {STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </GlassCard>
-        ))}
+            </GlassCard>
+          );
+        })}
 
         {pageItems.length === 0 && (
           <GlassCard className="p-8 text-center text-sm text-soul-muted">

@@ -118,6 +118,8 @@ CREATE TABLE orders (
   shipping_zip    VARCHAR(20) NOT NULL,
   shipping_country VARCHAR(2) NOT NULL DEFAULT 'US',
   payment_ref     VARCHAR(120),
+  payment_method  VARCHAR(32),
+  shipping_phone  VARCHAR(32),
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
