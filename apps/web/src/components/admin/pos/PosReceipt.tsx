@@ -145,18 +145,18 @@ export function PosReceipt({ receipt, className = "" }: Props) {
             <CloverMark size={40} />
           </div>
           <p className="text-[15px] font-bold tracking-[0.12em] uppercase">THE CLOVER</p>
-          <p className="mt-0.5 text-[11px] italic text-neutral-700">Sportswear</p>
-          <p className="mt-2 inline-block border-2 border-black px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-neutral-900">
+          <p className="mt-0.5 text-[11px] italic text-black">Sportswear</p>
+          <p className="mt-2 inline-block border-2 border-black px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-black">
             {isWeb ? "Online order · Packing slip" : "Store receipt"}
           </p>
-          <p className="mt-2 text-[11px] tabular-nums leading-relaxed text-neutral-800">
+          <p className="mt-2 text-[11px] tabular-nums leading-relaxed text-black">
             {STORE_PHONES.join(" · ")}
           </p>
         </header>
 
         <Dash />
 
-        <div className="space-y-0.5 text-[11px] text-neutral-800">
+        <div className="space-y-0.5 text-[11px] text-black">
           <Row label={isWeb ? "Order #" : "Receipt #"} value={no} />
           <Row label="Date" value={new Date(receipt.soldAt).toLocaleString()} />
           <Row label="Payment" value={pay} />
@@ -168,8 +168,8 @@ export function PosReceipt({ receipt, className = "" }: Props) {
         {isWeb && (name || phone || address) && (
           <>
             <Dash />
-            <p className="text-[10px] uppercase tracking-wide text-neutral-500 mb-1">Ship to</p>
-            <div className="space-y-0.5 text-[11px] text-neutral-800">
+            <p className="text-[10px] uppercase tracking-wide text-black mb-1">Ship to</p>
+            <div className="space-y-0.5 text-[11px] text-black">
               {name && <p>{name}</p>}
               {phone && <p>{phone}</p>}
               {address && <p className="break-words">{address}</p>}
@@ -180,7 +180,7 @@ export function PosReceipt({ receipt, className = "" }: Props) {
         {!isWeb && (name || phone) && (
           <>
             <Dash />
-            <div className="space-y-0.5 text-[11px] text-neutral-800">
+            <div className="space-y-0.5 text-[11px] text-black">
               {name && <p>Customer: {name}</p>}
               {phone && <p>Phone: {phone}</p>}
             </div>
@@ -189,7 +189,7 @@ export function PosReceipt({ receipt, className = "" }: Props) {
 
         <Dash />
 
-        <div className="flex justify-between text-[10px] uppercase tracking-wide mb-1 text-neutral-600">
+        <div className="flex justify-between text-[10px] uppercase tracking-wide mb-1 text-black">
           <span>Item</span>
           <span>Amount</span>
         </div>
@@ -197,13 +197,13 @@ export function PosReceipt({ receipt, className = "" }: Props) {
         <div className="space-y-3">
           {receipt.items.map((line, idx) => (
             <div key={`${line.productName}-${line.size}-${idx}`}>
-              <p className="font-medium leading-snug">{line.productName}</p>
-              <p className="text-[11px] mt-0.5 text-neutral-600">
+              <p className="font-semibold leading-snug text-black">{line.productName}</p>
+              <p className="text-[11px] mt-0.5 text-black">
                 {[line.colorName, line.size ? `Sz ${line.size}` : null, line.productCode]
                   .filter(Boolean)
                   .join(" · ")}
               </p>
-              <div className="mt-0.5 flex justify-between gap-2 tabular-nums text-[11px] text-neutral-800">
+              <div className="mt-0.5 flex justify-between gap-2 tabular-nums text-[11px] text-black">
                 <span>
                   {line.quantity} x {amt(line.unitPrice)}
                 </span>
@@ -215,7 +215,7 @@ export function PosReceipt({ receipt, className = "" }: Props) {
 
         <Dash />
 
-        <div className="space-y-1 text-[12px] text-neutral-800">
+        <div className="space-y-1 text-[12px] text-black">
           <Row label="Subtotal" value={amt(sub)} />
           {isWeb && shipping > 0 && <Row label="Shipping" value={amt(shipping)} />}
           {isWeb && tax > 0 && <Row label="Tax" value={amt(tax)} />}
@@ -232,40 +232,40 @@ export function PosReceipt({ receipt, className = "" }: Props) {
         {note && !/^web order/i.test(note) && (
           <>
             <Dash />
-            <p className="text-[11px] break-words text-neutral-700">{note}</p>
+            <p className="text-[11px] break-words text-black">{note}</p>
           </>
         )}
 
         <Dash />
 
-        <p className="text-center text-[11px] mt-1">
+        <p className="text-center text-[11px] mt-1 text-black">
           {isWeb ? "Thank you for your order" : "Thank you for shopping with us"}
         </p>
         {isWeb ? (
-          <p className="text-center text-[10px] mt-2 text-neutral-700">
+          <p className="text-center text-[10px] mt-2 text-black">
             We&apos;ll pack and ship soon
           </p>
         ) : (
-          <p className="text-center text-[10px] mt-2 text-neutral-700">
+          <p className="text-center text-[10px] mt-2 text-black">
             Paid in store · no shipping
           </p>
         )}
-        <p className="text-center text-[10px] mt-2 leading-snug text-neutral-700">{STORE_ADDRESS}</p>
-        <p className="text-center text-[10px] mt-1 text-neutral-700">Messenger: {STORE_MESSENGER}</p>
+        <p className="text-center text-[10px] mt-2 leading-snug text-black">{STORE_ADDRESS}</p>
+        <p className="text-center text-[10px] mt-1 text-black">Messenger: {STORE_MESSENGER}</p>
       </div>
     </div>
   );
 }
 
 function Dash() {
-  return <div className="my-3 border-t border-dashed border-neutral-400" aria-hidden />;
+  return <div className="my-3 border-t border-dashed border-black" aria-hidden />;
 }
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between gap-3 font-normal">
-      <span className="shrink-0 text-neutral-600">{label}</span>
-      <span className="text-right min-w-0 break-words tabular-nums">{value}</span>
+    <div className="flex justify-between gap-3 font-normal text-black">
+      <span className="shrink-0 text-black">{label}</span>
+      <span className="text-right min-w-0 break-words tabular-nums text-black">{value}</span>
     </div>
   );
 }
@@ -319,22 +319,23 @@ function buildReceiptPrintHtml(receipt: ReceiptData, paperMm: PaperWidthMm) {
 }
 
 function sharedPrintCss(printW: number, body: number, small: number, brand: number) {
+  /* Thermal printers are ~1-bit: gray CSS becomes nearly invisible. All ink = #000. */
   return `
     @page { size: auto; margin: 0; }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    * { box-sizing: border-box; margin: 0; padding: 0; color: #000 !important; }
     html, body {
-      margin: 0; padding: 0; background: #fff; color: #000;
+      margin: 0; padding: 0; background: #fff; color: #000 !important;
       -webkit-print-color-adjust: exact; print-color-adjust: exact;
     }
     body {
       font-family: Arial, Helvetica, sans-serif;
       font-size: ${body}px;
-      font-weight: 400;
-      line-height: 1.4;
+      font-weight: 500;
+      line-height: 1.45;
       width: ${printW}mm;
       max-width: ${printW}mm;
       padding: 3mm 2mm 5mm;
-      color: #000;
+      color: #000 !important;
     }
     .center { text-align: center; }
     .logo { margin: 0 auto 4px; display: block; text-align: center; }
@@ -342,23 +343,23 @@ function sharedPrintCss(printW: number, body: number, small: number, brand: numb
       font-size: ${brand}px; font-weight: 700;
       letter-spacing: 0.1em; text-transform: uppercase;
     }
-    .tag { font-size: ${small}px; font-style: italic; margin-top: 2px; }
-    .phones { font-size: ${small}px; margin-top: 6px; }
+    .tag { font-size: ${small}px; font-style: italic; margin-top: 2px; font-weight: 500; }
+    .phones { font-size: ${small}px; margin-top: 6px; font-weight: 500; }
     .dash { border: none; border-top: 1px dashed #000; margin: 8px 0; }
     .eq { border: none; border-top: 2px solid #000; margin: 8px 0; }
     .block { font-size: ${small}px; }
     .row {
       display: flex; justify-content: space-between; gap: 8px;
-      font-size: ${small}px; margin: 2px 0;
+      font-size: ${small}px; margin: 2px 0; font-weight: 500;
     }
-    .row .k { color: #333; }
-    .row .v { text-align: right; word-break: break-word; }
+    .row .k { color: #000 !important; font-weight: 500; }
+    .row .v { text-align: right; word-break: break-word; color: #000 !important; font-weight: 600; }
     .item { margin: 0 0 8px; }
-    .iname { font-weight: 600; word-break: break-word; }
-    .imeta { font-size: ${small}px; margin-top: 1px; color: #333; }
+    .iname { font-weight: 700; word-break: break-word; }
+    .imeta { font-size: ${small}px; margin-top: 1px; color: #000 !important; font-weight: 500; }
     .irow {
       display: flex; justify-content: space-between; gap: 8px;
-      margin-top: 2px; font-size: ${small}px;
+      margin-top: 2px; font-size: ${small}px; font-weight: 500;
     }
     .total-row {
       display: flex; justify-content: space-between; align-items: baseline;
@@ -366,15 +367,16 @@ function sharedPrintCss(printW: number, body: number, small: number, brand: numb
     }
     .total-row .lbl { font-size: ${small}px; text-transform: uppercase; font-weight: 700; }
     .total-row .amt { font-size: ${Math.round(body * 1.25)}px; font-weight: 700; white-space: nowrap; }
-    .thanks { text-align: center; font-size: ${small}px; margin-top: 6px; }
-    .foot { text-align: center; font-size: ${small - 1}px; margin-top: 6px; line-height: 1.4; }
+    .thanks { text-align: center; font-size: ${small}px; margin-top: 6px; font-weight: 500; }
+    .foot { text-align: center; font-size: ${small}px; margin-top: 6px; line-height: 1.4; font-weight: 500; }
     .hint {
       text-align: center; font-size: 9px; margin-top: 10px;
-      border-top: 1px dashed #999; padding-top: 6px; color: #666;
+      border-top: 1px dashed #000; padding-top: 6px; color: #000 !important;
     }
     @media print {
       .hint { display: none !important; }
       html, body { width: ${printW}mm !important; max-width: ${printW}mm !important; }
+      * { color: #000 !important; }
     }
   `;
 }
@@ -406,9 +408,9 @@ function buildStorePrintHtml(receipt: ReceiptData, paperMm: PaperWidthMm) {
   const pay = PAY_LABELS[receipt.paymentMethod || "cash"] || "Cash";
   const printW = printableWidthMm(paperMm);
   const isNarrow = printW <= 52;
-  const body = isNarrow ? 12 : 13;
-  const small = isNarrow ? 11 : 12;
-  const brand = isNarrow ? 14 : 16;
+  const body = isNarrow ? 13 : 14;
+  const small = isNarrow ? 12 : 13;
+  const brand = isNarrow ? 15 : 17;
   const sub = itemsSubtotal(receipt.items);
   const units = receipt.items.reduce((s, i) => s + i.quantity, 0);
   const name = escapeHtml(receipt.customerName?.trim() || "");
@@ -470,9 +472,9 @@ function buildWebsitePrintHtml(receipt: ReceiptData, paperMm: PaperWidthMm) {
   const pay = PAY_LABELS[receipt.paymentMethod || "cash"] || "Cash";
   const printW = printableWidthMm(paperMm);
   const isNarrow = printW <= 52;
-  const body = isNarrow ? 12 : 13;
-  const small = isNarrow ? 11 : 12;
-  const brand = isNarrow ? 14 : 16;
+  const body = isNarrow ? 13 : 14;
+  const small = isNarrow ? 12 : 13;
+  const brand = isNarrow ? 15 : 17;
   const sub = itemsSubtotal(receipt.items);
   const shipping = receipt.shippingCents ?? 0;
   const tax = receipt.taxCents ?? 0;
@@ -694,7 +696,8 @@ export async function downloadReceiptPng(
     | { k: "pair"; left: string; right: string; s: number };
 
   const ops: Op[] = [];
-  const text = (t: string, s = fs, w = "400", a: CanvasTextAlign = "left") =>
+  /* Medium+ weight — thin 400 strokes anti-alias to gray and vanish on thermal. */
+  const text = (t: string, s = fs, w = "600", a: CanvasTextAlign = "left") =>
     ops.push({ k: "text", t, s, w, a });
   const gap = (h: number) => ops.push({ k: "gap", h });
   const pair = (left: string, right: string, s = fsSm) => ops.push({ k: "pair", left, right, s });
@@ -703,11 +706,11 @@ export async function downloadReceiptPng(
   gap(6);
   text("THE CLOVER", fsBrand, "700", "center");
   gap(2);
-  text("Sportswear", fsSm, "400", "center");
+  text("Sportswear", fsSm, "600", "center");
   gap(4);
-  text(receipt.channel === "website" ? "ONLINE ORDER" : "STORE SALE", fsSm, "600", "center");
+  text(receipt.channel === "website" ? "ONLINE ORDER" : "STORE SALE", fsSm, "700", "center");
   gap(6);
-  text(STORE_PHONES.join(" · "), fsSm, "400", "center");
+  text(STORE_PHONES.join(" · "), fsSm, "600", "center");
   gap(4);
   ops.push({ k: "dash" });
   gap(4);
@@ -721,9 +724,9 @@ export async function downloadReceiptPng(
     gap(4);
     ops.push({ k: "dash" });
     gap(4);
-    if (receipt.customerName?.trim()) text(`Name: ${receipt.customerName.trim()}`, fsSm, "400");
-    if (receipt.customerPhone?.trim()) text(`Phone: ${receipt.customerPhone.trim()}`, fsSm, "400");
-    if (receipt.customerAddress?.trim()) text(`Addr: ${receipt.customerAddress.trim()}`, fsSm, "400");
+    if (receipt.customerName?.trim()) text(`Name: ${receipt.customerName.trim()}`, fsSm, "600");
+    if (receipt.customerPhone?.trim()) text(`Phone: ${receipt.customerPhone.trim()}`, fsSm, "600");
+    if (receipt.customerAddress?.trim()) text(`Addr: ${receipt.customerAddress.trim()}`, fsSm, "600");
   }
 
   gap(4);
@@ -733,11 +736,11 @@ export async function downloadReceiptPng(
 
   for (const item of receipt.items) {
     gap(6);
-    text(item.productName, fs, "600");
+    text(item.productName, fs, "700");
     const meta = [item.colorName, item.size ? `Sz ${item.size}` : null, item.productCode]
       .filter(Boolean)
       .join(" · ");
-    if (meta) text(meta, fsSm, "400");
+    if (meta) text(meta, fsSm, "600");
     pair(`${item.quantity} x ${amt(item.unitPrice)}`, amt(item.lineTotal), fsSm);
   }
 
@@ -753,17 +756,17 @@ export async function downloadReceiptPng(
     gap(6);
     ops.push({ k: "dash" });
     gap(4);
-    text(note, fsSm, "400");
+    text(note, fsSm, "600");
   }
 
   gap(6);
   ops.push({ k: "dash" });
   gap(6);
-  text("Thank you for shopping", fsSm, "400", "center");
+  text("Thank you for shopping", fsSm, "600", "center");
   gap(6);
-  text(STORE_ADDRESS, fsSm - 1, "400", "center");
+  text(STORE_ADDRESS, fsSm, "600", "center");
   gap(2);
-  text(`Messenger: ${STORE_MESSENGER}`, fsSm - 1, "400", "center");
+  text(`Messenger: ${STORE_MESSENGER}`, fsSm, "600", "center");
 
   const logo = await loadLogoImage();
   const canvas = document.createElement("canvas");
@@ -788,6 +791,7 @@ export async function downloadReceiptPng(
   ctx.fillStyle = "#000";
   ctx.strokeStyle = "#000";
   ctx.textBaseline = "top";
+  ctx.imageSmoothingEnabled = false;
 
   let y = pad;
   for (const op of ops) {
@@ -802,8 +806,8 @@ export async function downloadReceiptPng(
       continue;
     }
     if (op.k === "dash") {
-      ctx.lineWidth = 1;
-      ctx.setLineDash([4, 3]);
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5, 3]);
       ctx.beginPath();
       ctx.moveTo(pad, y + 4);
       ctx.lineTo(W - pad, y + 4);
@@ -813,7 +817,7 @@ export async function downloadReceiptPng(
       continue;
     }
     if (op.k === "pair") {
-      ctx.font = `400 ${op.s}px Arial, Helvetica, sans-serif`;
+      ctx.font = `600 ${op.s}px Arial, Helvetica, sans-serif`;
       ctx.textAlign = "left";
       ctx.fillText(op.left, pad, y, W * 0.55);
       ctx.textAlign = "right";
@@ -827,6 +831,17 @@ export async function downloadReceiptPng(
     ctx.fillText(op.t, x, y, W - pad * 2);
     y += op.s * 1.45;
   }
+
+  /* Flatten anti-aliased gray to pure black/white for thermal heads. */
+  const pixels = ctx.getImageData(0, 0, W, canvas.height);
+  const d = pixels.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const lum = d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114;
+    const v = lum < 200 ? 0 : 255;
+    d[i] = d[i + 1] = d[i + 2] = v;
+    d[i + 3] = 255;
+  }
+  ctx.putImageData(pixels, 0, 0);
 
   const blob = await new Promise<Blob | null>((resolve) =>
     canvas.toBlob((b) => resolve(b), "image/png")
