@@ -162,8 +162,8 @@ export function PosReceipt({ receipt, className = "" }: Props) {
           </div>
           <p className="text-[15px] font-bold tracking-[0.12em] uppercase">THE CLOVER</p>
           <p className="mt-0.5 text-[11px] italic text-neutral-700">Sportswear</p>
-          <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-neutral-800">
-            {isWeb ? "Online order" : "Store sale"}
+          <p className="mt-2 inline-block border-2 border-black px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-neutral-900">
+            {isWeb ? "Online order · Packing slip" : "Store receipt"}
           </p>
           <p className="mt-2 text-[11px] tabular-nums leading-relaxed text-neutral-800">
             {STORE_PHONES.join(" · ")}
@@ -332,92 +332,18 @@ const CLOVER_SVG_MARK = `
 </svg>`;
 
 /**
- * Classic thermal print HTML — store vs website layout. No grids.
+ * Build print HTML — store and website are separate layouts (not the same ticket).
  */
 function buildReceiptPrintHtml(receipt: ReceiptData, paperMm: PaperWidthMm) {
   const channel = receipt.channel === "website" ? "website" : "store";
-  const isWeb = channel === "website";
-  const no = receiptNo(receipt.saleId);
-  const when = new Date(receipt.soldAt).toLocaleString();
-  const pay = PAY_LABELS[receipt.paymentMethod || "cash"] || "Cash";
-  const printW = printableWidthMm(paperMm);
-  const isNarrow = printW <= 52;
-  const body = isNarrow ? 12 : 13;
-  const small = isNarrow ? 11 : 12;
-  const brand = isNarrow ? 14 : 16;
-  const name = escapeHtml(receipt.customerName?.trim() || "");
-  const phone = escapeHtml(receipt.customerPhone?.trim() || "");
-  const address = escapeHtml(receipt.customerAddress?.trim() || "");
-  const note = noteClean(receipt.notes);
-  const sub = itemsSubtotal(receipt.items);
-  const shipping = receipt.shippingCents ?? 0;
-  const tax = receipt.taxCents ?? 0;
-  const other =
-    shipping + tax > 0
-      ? shipping + tax
-      : Math.max(0, Math.round(receipt.total) - sub);
-  const units = receipt.items.reduce((s, i) => s + i.quantity, 0);
-  const idLabel = isWeb ? "Order #" : "Receipt #";
-  const channelLabel = isWeb ? "Website" : "Store POS";
-  const kindLabel = isWeb ? "ONLINE ORDER" : "STORE SALE";
-  const thanks = isWeb ? "Thank you for your order" : "Thank you for shopping with us";
-  const tagline = isWeb ? "We'll pack and ship soon" : "Paid in store · no shipping";
+  return channel === "website"
+    ? buildWebsitePrintHtml(receipt, paperMm)
+    : buildStorePrintHtml(receipt, paperMm);
+}
 
-  const lines = receipt.items
-    .map((line) => {
-      const meta = [line.colorName, line.size ? `Sz ${line.size}` : null, line.productCode]
-        .filter(Boolean)
-        .join(" · ");
-      const lineAmt = line.lineTotal || line.unitPrice * line.quantity;
-      return `
-      <div class="item">
-        <div class="iname">${escapeHtml(line.productName)}</div>
-        ${meta ? `<div class="imeta">${escapeHtml(meta)}</div>` : ""}
-        <div class="irow">
-          <span>${line.quantity} x ${amt(line.unitPrice)}</span>
-          <span class="iamt">${amt(lineAmt)}</span>
-        </div>
-      </div>`;
-    })
-    .join("");
-
-  let custBlock = "";
-  if (isWeb && (name || phone || address)) {
-    custBlock = `<div class="dash"></div>
-      <div class="block">
-        <div class="ship-lbl">Ship to</div>
-        ${name ? `<div>${name}</div>` : ""}
-        ${phone ? `<div>${phone}</div>` : ""}
-        ${address ? `<div>${address}</div>` : ""}
-      </div>`;
-  } else if (!isWeb && (name || phone)) {
-    custBlock = `<div class="dash"></div>
-      <div class="block">
-        ${name ? `<div>Customer: ${name}</div>` : ""}
-        ${phone ? `<div>Phone: ${phone}</div>` : ""}
-      </div>`;
-  }
-
-  const extraRows = isWeb
-    ? `${shipping > 0 ? `<div class="row"><span class="k">Shipping</span><span class="v">${amt(shipping)}</span></div>` : ""}
-       ${tax > 0 ? `<div class="row"><span class="k">Tax</span><span class="v">${amt(tax)}</span></div>` : ""}
-       ${shipping + tax === 0 && other > 0 ? `<div class="row"><span class="k">Shipping / tax</span><span class="v">${amt(other)}</span></div>` : ""}`
-    : other > 0
-      ? `<div class="row"><span class="k">Other</span><span class="v">${amt(other)}</span></div>`
-      : "";
-
-  const noteHtml =
-    note && !/^web order/i.test(note)
-      ? `<div class="dash"></div><div class="block">${escapeHtml(note)}</div>`
-      : "";
-
-  return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <title>THE CLOVER ${isWeb ? "Order" : "Receipt"} #${no}</title>
-  <style>
-    @page { size: ${paperMm}mm auto; margin: 0; }
+function sharedPrintCss(printW: number, body: number, small: number, brand: number) {
+  return `
+    @page { size: auto; margin: 0; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
       margin: 0; padding: 0; background: #fff; color: #000;
@@ -434,71 +360,93 @@ function buildReceiptPrintHtml(receipt: ReceiptData, paperMm: PaperWidthMm) {
       color: #000;
     }
     .center { text-align: center; }
-    .logo { margin: 0 auto 4px; display: block; }
+    .logo { margin: 0 auto 4px; display: block; text-align: center; }
     .brand {
-      font-size: ${brand}px;
-      font-weight: 700;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
+      font-size: ${brand}px; font-weight: 700;
+      letter-spacing: 0.1em; text-transform: uppercase;
     }
-    .tag { font-size: ${small}px; font-style: italic; font-weight: 400; margin-top: 2px; }
-    .kind {
-      font-size: ${small - 1}px; font-weight: 600; letter-spacing: 0.14em;
-      text-transform: uppercase; margin-top: 6px;
-    }
-    .phones { font-size: ${small}px; font-weight: 400; margin-top: 6px; }
-    .dash {
-      border: none;
-      border-top: 1px dashed #000;
-      margin: 8px 0;
-    }
-    .block { font-size: ${small}px; font-weight: 400; }
-    .ship-lbl {
-      font-size: ${small - 1}px; text-transform: uppercase; letter-spacing: 0.06em;
-      color: #444; margin-bottom: 3px;
-    }
+    .tag { font-size: ${small}px; font-style: italic; margin-top: 2px; }
+    .phones { font-size: ${small}px; margin-top: 6px; }
+    .dash { border: none; border-top: 1px dashed #000; margin: 8px 0; }
+    .eq { border: none; border-top: 2px solid #000; margin: 8px 0; }
+    .block { font-size: ${small}px; }
     .row {
       display: flex; justify-content: space-between; gap: 8px;
-      font-size: ${small}px; font-weight: 400; margin: 2px 0;
+      font-size: ${small}px; margin: 2px 0;
     }
     .row .k { color: #333; }
     .row .v { text-align: right; word-break: break-word; }
-    .cols {
-      display: flex; justify-content: space-between;
-      font-size: ${small - 1}px; text-transform: uppercase;
-      font-weight: 400; letter-spacing: 0.04em; margin-bottom: 4px;
-      color: #444;
-    }
     .item { margin: 0 0 8px; }
-    .iname { font-weight: 600; font-size: ${body}px; word-break: break-word; }
-    .imeta { font-size: ${small}px; font-weight: 400; margin-top: 1px; color: #333; }
+    .iname { font-weight: 600; word-break: break-word; }
+    .imeta { font-size: ${small}px; margin-top: 1px; color: #333; }
     .irow {
       display: flex; justify-content: space-between; gap: 8px;
-      margin-top: 2px; font-weight: 400; font-size: ${small}px;
+      margin-top: 2px; font-size: ${small}px;
     }
-    .iamt { font-weight: 400; white-space: nowrap; }
     .total-row {
       display: flex; justify-content: space-between; align-items: baseline;
-      gap: 8px; margin-top: 6px; padding-top: 6px;
-      border-top: 1px solid #000;
+      gap: 8px; margin-top: 6px; padding-top: 6px; border-top: 1px solid #000;
     }
-    .total-row .lbl {
-      font-size: ${small}px; text-transform: uppercase;
-      letter-spacing: 0.06em; font-weight: 700;
-    }
-    .total-row .amt {
-      font-size: ${isNarrow ? 15 : 17}px; white-space: nowrap; font-weight: 700;
-    }
-    .thanks { text-align: center; font-weight: 400; font-size: ${small}px; margin-top: 4px; }
-    .tagline { text-align: center; font-size: ${small - 1}px; margin-top: 4px; color: #333; }
-    .foot { text-align: center; font-size: ${small - 1}px; font-weight: 400; margin-top: 6px; line-height: 1.4; }
+    .total-row .lbl { font-size: ${small}px; text-transform: uppercase; font-weight: 700; }
+    .total-row .amt { font-size: ${Math.round(body * 1.25)}px; font-weight: 700; white-space: nowrap; }
+    .thanks { text-align: center; font-size: ${small}px; margin-top: 6px; }
+    .foot { text-align: center; font-size: ${small - 1}px; margin-top: 6px; line-height: 1.4; }
     .hint {
-      text-align: center; font-size: 9px; font-weight: 400; margin-top: 10px;
+      text-align: center; font-size: 9px; margin-top: 10px;
       border-top: 1px dashed #999; padding-top: 6px; color: #666;
     }
     @media print {
       .hint { display: none !important; }
       html, body { width: ${printW}mm !important; max-width: ${printW}mm !important; }
+    }
+  `;
+}
+
+function itemLinesHtml(items: ReceiptItem[]) {
+  return items
+    .map((line) => {
+      const meta = [line.colorName, line.size ? `Sz ${line.size}` : null, line.productCode]
+        .filter(Boolean)
+        .join(" · ");
+      const lineAmt = line.lineTotal || line.unitPrice * line.quantity;
+      return `
+      <div class="item">
+        <div class="iname">${escapeHtml(line.productName)}</div>
+        ${meta ? `<div class="imeta">${escapeHtml(meta)}</div>` : ""}
+        <div class="irow">
+          <span>${line.quantity} x ${amt(line.unitPrice)}</span>
+          <span>${amt(lineAmt)}</span>
+        </div>
+      </div>`;
+    })
+    .join("");
+}
+
+/** Compact walk-in cash receipt (POS). */
+function buildStorePrintHtml(receipt: ReceiptData, paperMm: PaperWidthMm) {
+  const no = receiptNo(receipt.saleId);
+  const when = new Date(receipt.soldAt).toLocaleString();
+  const pay = PAY_LABELS[receipt.paymentMethod || "cash"] || "Cash";
+  const printW = printableWidthMm(paperMm);
+  const isNarrow = printW <= 52;
+  const body = isNarrow ? 12 : 13;
+  const small = isNarrow ? 11 : 12;
+  const brand = isNarrow ? 14 : 16;
+  const sub = itemsSubtotal(receipt.items);
+  const units = receipt.items.reduce((s, i) => s + i.quantity, 0);
+  const name = escapeHtml(receipt.customerName?.trim() || "");
+  const note = noteClean(receipt.notes);
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>STORE RECEIPT #${no}</title>
+  <style>${sharedPrintCss(printW, body, small, brand)}
+    .kind {
+      display: inline-block; margin-top: 8px; padding: 3px 10px;
+      border: 2px solid #000; font-size: ${small}px; font-weight: 700;
+      letter-spacing: 0.12em; text-transform: uppercase;
     }
   </style>
 </head>
@@ -507,43 +455,155 @@ function buildReceiptPrintHtml(receipt: ReceiptData, paperMm: PaperWidthMm) {
     <div class="logo">${CLOVER_SVG_MARK}</div>
     <div class="brand">THE CLOVER</div>
     <div class="tag">Sportswear</div>
-    <div class="kind">${kindLabel}</div>
+    <div class="kind">Store receipt</div>
     <div class="phones">${STORE_PHONES.map(escapeHtml).join(" · ")}</div>
   </div>
-
   <div class="dash"></div>
-
   <div class="block">
-    <div class="row"><span class="k">${idLabel}</span><span class="v">${no}</span></div>
+    <div class="row"><span class="k">Receipt #</span><span class="v">${no}</span></div>
     <div class="row"><span class="k">Date</span><span class="v">${escapeHtml(when)}</span></div>
     <div class="row"><span class="k">Payment</span><span class="v">${escapeHtml(pay)}</span></div>
     <div class="row"><span class="k">Items</span><span class="v">${units}</span></div>
-    <div class="row"><span class="k">Channel</span><span class="v">${channelLabel}</span></div>
   </div>
-
-  ${custBlock}
-
+  ${name ? `<div class="dash"></div><div class="block">Customer: ${name}</div>` : ""}
   <div class="dash"></div>
-  <div class="cols"><span>Item</span><span>Amount</span></div>
-  ${lines}
-
+  ${itemLinesHtml(receipt.items)}
   <div class="dash"></div>
   <div class="block">
     <div class="row"><span class="k">Subtotal</span><span class="v">${amt(sub)}</span></div>
-    ${extraRows}
     <div class="total-row">
       <span class="lbl">Total</span>
       <span class="amt">${formatMMK(receipt.total)}</span>
     </div>
   </div>
-
-  ${noteHtml}
-
+  ${note ? `<div class="dash"></div><div class="block">${escapeHtml(note)}</div>` : ""}
   <div class="dash"></div>
-  <p class="thanks">${thanks}</p>
-  <p class="tagline">${tagline}</p>
+  <p class="thanks">Thank you for shopping with us</p>
+  <p class="thanks">Paid in store</p>
   <p class="foot">${escapeHtml(STORE_ADDRESS)}<br/>Messenger: ${escapeHtml(STORE_MESSENGER)}</p>
-  <p class="hint">${isWeb ? "Website order" : "Store POS"} · XP-80C · ${paperMm}mm</p>
+  <p class="hint">STORE POS · ${paperMm}mm · scale 100% · margins None</p>
+</body>
+</html>`;
+}
+
+/** Online packing / order slip — clearly different from store receipt. */
+function buildWebsitePrintHtml(receipt: ReceiptData, paperMm: PaperWidthMm) {
+  const no = receiptNo(receipt.saleId);
+  const when = new Date(receipt.soldAt).toLocaleString();
+  const pay = PAY_LABELS[receipt.paymentMethod || "cash"] || "Cash";
+  const printW = printableWidthMm(paperMm);
+  const isNarrow = printW <= 52;
+  const body = isNarrow ? 12 : 13;
+  const small = isNarrow ? 11 : 12;
+  const brand = isNarrow ? 14 : 16;
+  const sub = itemsSubtotal(receipt.items);
+  const shipping = receipt.shippingCents ?? 0;
+  const tax = receipt.taxCents ?? 0;
+  const other =
+    shipping + tax > 0
+      ? 0
+      : Math.max(0, Math.round(receipt.total) - sub);
+  const units = receipt.items.reduce((s, i) => s + i.quantity, 0);
+  const name = escapeHtml(receipt.customerName?.trim() || "");
+  const phone = escapeHtml(receipt.customerPhone?.trim() || "");
+  const address = escapeHtml(receipt.customerAddress?.trim() || "");
+  const note = noteClean(receipt.notes);
+
+  const packLines = receipt.items
+    .map((line) => {
+      const meta = [line.colorName, line.size ? `Sz ${line.size}` : null]
+        .filter(Boolean)
+        .join(" · ");
+      return `<div class="pack-line">
+        <span class="box">[ ]</span>
+        <span class="pack-body">
+          <strong>${line.quantity}x</strong> ${escapeHtml(line.productName)}
+          ${meta ? `<div class="imeta">${escapeHtml(meta)}</div>` : ""}
+        </span>
+        <span class="pack-amt">${amt(line.lineTotal || line.unitPrice * line.quantity)}</span>
+      </div>`;
+    })
+    .join("");
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>ONLINE ORDER #${no}</title>
+  <style>${sharedPrintCss(printW, body, small, brand)}
+    .banner {
+      margin-top: 8px; padding: 6px 4px;
+      border: 2px solid #000; font-weight: 700;
+      letter-spacing: 0.14em; text-transform: uppercase;
+      font-size: ${small}px;
+    }
+    .section {
+      font-size: ${small - 1}px; font-weight: 700;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      margin: 2px 0 6px;
+    }
+    .ship-box {
+      border: 1px solid #000; padding: 6px 8px; margin: 4px 0 2px;
+      font-size: ${small}px;
+    }
+    .pack-line {
+      display: flex; gap: 6px; align-items: flex-start;
+      margin: 0 0 8px; font-size: ${small}px;
+    }
+    .box { font-weight: 700; flex-shrink: 0; }
+    .pack-body { flex: 1; min-width: 0; word-break: break-word; }
+    .pack-amt { white-space: nowrap; flex-shrink: 0; }
+  </style>
+</head>
+<body>
+  <div class="center">
+    <div class="logo">${CLOVER_SVG_MARK}</div>
+    <div class="brand">THE CLOVER</div>
+    <div class="tag">Sportswear</div>
+    <div class="banner">Online order · Packing slip</div>
+    <div class="phones">${STORE_PHONES.map(escapeHtml).join(" · ")}</div>
+  </div>
+
+  <div class="eq"></div>
+  <div class="block">
+    <div class="row"><span class="k">Order #</span><span class="v">${no}</span></div>
+    <div class="row"><span class="k">Placed</span><span class="v">${escapeHtml(when)}</span></div>
+    <div class="row"><span class="k">Pay</span><span class="v">${escapeHtml(pay)}</span></div>
+    <div class="row"><span class="k">Units</span><span class="v">${units}</span></div>
+  </div>
+
+  <div class="eq"></div>
+  <div class="section">Ship to</div>
+  <div class="ship-box">
+    ${name || "—"}<br/>
+    ${phone || ""}
+    ${phone && address ? "<br/>" : ""}
+    ${address || ""}
+  </div>
+
+  <div class="eq"></div>
+  <div class="section">Pack these items</div>
+  ${packLines}
+
+  <div class="eq"></div>
+  <div class="block">
+    <div class="row"><span class="k">Subtotal</span><span class="v">${amt(sub)}</span></div>
+    ${shipping > 0 ? `<div class="row"><span class="k">Shipping</span><span class="v">${amt(shipping)}</span></div>` : ""}
+    ${tax > 0 ? `<div class="row"><span class="k">Tax</span><span class="v">${amt(tax)}</span></div>` : ""}
+    ${other > 0 ? `<div class="row"><span class="k">Shipping / tax</span><span class="v">${amt(other)}</span></div>` : ""}
+    <div class="total-row">
+      <span class="lbl">Order total</span>
+      <span class="amt">${formatMMK(receipt.total)}</span>
+    </div>
+  </div>
+
+  ${note ? `<div class="dash"></div><div class="block">${escapeHtml(note)}</div>` : ""}
+
+  <div class="eq"></div>
+  <p class="thanks">Pack · label · ship</p>
+  <p class="thanks">Thank you for your order</p>
+  <p class="foot">${escapeHtml(STORE_ADDRESS)}<br/>Messenger: ${escapeHtml(STORE_MESSENGER)}</p>
+  <p class="hint">WEBSITE ORDER · ${paperMm}mm · scale 100% · margins None</p>
 </body>
 </html>`;
 }
@@ -561,9 +621,17 @@ function triggerPrintInDocument(doc: Document, win?: Window | null) {
   setTimeout(run, 200);
 }
 
-/** Print via OS dialog (USB / Bluetooth / network). */
-export function printReceipt(receipt: ReceiptData, paperMm: PaperWidthMm = 80) {
-  const html = buildReceiptPrintHtml(receipt, paperMm);
+/** Print via OS dialog. Optional forceChannel guarantees store vs website layout on every PC. */
+export function printReceipt(
+  receipt: ReceiptData,
+  paperMm: PaperWidthMm = 80,
+  forceChannel?: "store" | "website"
+) {
+  const data: ReceiptData = {
+    ...receipt,
+    channel: forceChannel || receipt.channel || "store",
+  };
+  const html = buildReceiptPrintHtml(data, paperMm);
 
   const win = window.open("", "_blank", "width=420,height=720");
   if (win) {

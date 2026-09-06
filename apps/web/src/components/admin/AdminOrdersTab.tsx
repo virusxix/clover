@@ -109,7 +109,7 @@ export function AdminOrdersTab({ orders, onStatusChange }: Props) {
     setPrintId(id);
     try {
       const receipt = await api<ReceiptData>(`/api/admin/orders/${id}/receipt`);
-      printReceipt(receipt, loadPaperWidth());
+      printReceipt(receipt, loadPaperWidth(), "website");
     } catch (err) {
       alert(err instanceof Error ? err.message : "Could not print receipt");
     } finally {

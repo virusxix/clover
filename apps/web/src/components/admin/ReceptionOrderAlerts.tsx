@@ -175,7 +175,7 @@ function notifyBrowser(o: FeedOrder) {
 async function printWebOrder(orderId: string) {
   try {
     const receipt = await api<ReceiptData>(`/api/admin/orders/${orderId}/receipt`);
-    printReceipt(receipt, loadPaperWidth());
+    printReceipt(receipt, loadPaperWidth(), "website");
   } catch (err) {
     console.error("[reception] print failed", err);
   }

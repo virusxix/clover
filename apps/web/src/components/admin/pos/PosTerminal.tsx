@@ -271,7 +271,7 @@ export function PosTerminal() {
       clearCart();
       load();
       // Any PC with USB / Bluetooth / network printer → OS print dialog
-      printReceipt(res, paperMm);
+      printReceipt(res, paperMm, "store");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Checkout failed");
     } finally {
@@ -320,7 +320,7 @@ export function PosTerminal() {
             onClick={() => {
               const test = buildTestReceipt();
               setReceipt(test);
-              printReceipt(test, paperMm);
+              printReceipt(test, paperMm, "store");
             }}
             className="btn-soul--dark rounded-full min-h-[44px] px-5 text-[10px]"
           >
@@ -649,7 +649,7 @@ export function PosTerminal() {
             <div className="flex flex-col sm:flex-row gap-2 mt-6">
               <button
                 type="button"
-                onClick={() => printReceipt(receipt, paperMm)}
+                onClick={() => printReceipt(receipt, paperMm, receipt.channel === "website" ? "website" : "store")}
                 className="btn-soul--dark rounded-full flex-1 min-h-[48px]"
               >
                 Print receipt
