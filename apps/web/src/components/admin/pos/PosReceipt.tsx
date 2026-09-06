@@ -3,11 +3,12 @@
 /**
  * THE CLOVER store receipt — classic thermal POS layout for XP-80C.
  * Dashed separators, no grid. Normal weight body; bold only for brand + total.
- * Logo mark is unchanged (logo-clover.svg paths).
+ * Uses official /assets/logo-icon.png (not the decorative SVG).
  */
 
 import { formatMMK } from "@/lib/currency";
 import { PAYMENT_LABELS } from "@/lib/payments";
+import { CLOVER_LOGO_DATA_URL } from "./clover-logo-data";
 
 export type ReceiptItem = {
   productName: string;
@@ -82,35 +83,18 @@ function itemsSubtotal(items: ReceiptItem[]) {
   return items.reduce((s, i) => s + (i.lineTotal || 0), 0);
 }
 
-/** Official clover mark — same paths as /assets/logo-clover.svg. */
+/** Official brand mark — same asset as site header (/assets/logo-icon.png). */
 function CloverMark({ size = 44, className = "" }: { size?: number; className?: string }) {
   return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 48 48"
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={CLOVER_LOGO_DATA_URL}
+      alt=""
       width={size}
       height={size}
-      fill="none"
-      aria-hidden="true"
-      className={className}
-    >
-      <path
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M24 8 C30 8 34 12 34 18 C34 24 30 28 24 28 C18 28 14 24 14 18 C14 12 18 8 24 8 Z
-           M24 20 C30 20 34 24 34 30 C34 36 30 40 24 40 C18 40 14 36 14 30 C14 24 18 20 24 20 Z"
-      />
-      <path
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M40 24 C40 30 36 34 30 34 C24 34 20 30 20 24 C20 18 24 14 30 14 C36 14 40 18 40 24 Z
-           M28 24 C28 30 24 34 18 34 C12 34 8 30 8 24 C8 18 12 14 18 14 C24 14 28 18 28 24 Z"
-      />
-    </svg>
+      className={`object-contain ${className}`}
+      draggable={false}
+    />
   );
 }
 
@@ -321,15 +305,8 @@ export function buildTestReceipt(): ReceiptData {
   };
 }
 
-const CLOVER_SVG_MARK = `
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="38" height="38" fill="none" aria-hidden="true">
-  <path stroke="#000" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"
-    d="M24 8 C30 8 34 12 34 18 C34 24 30 28 24 28 C18 28 14 24 14 18 C14 12 18 8 24 8 Z
-       M24 20 C30 20 34 24 34 30 C34 36 30 40 24 40 C18 40 14 36 14 30 C14 24 18 20 24 20 Z" />
-  <path stroke="#000" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"
-    d="M40 24 C40 30 36 34 30 34 C24 34 20 30 20 24 C20 18 24 14 30 14 C36 14 40 18 40 24 Z
-       M28 24 C28 30 24 34 18 34 C12 34 8 30 8 24 C8 18 12 14 18 14 C24 14 28 18 28 24 Z" />
-</svg>`;
+/** Embedded brand PNG — works in print popups without network. */
+const CLOVER_LOGO_IMG = `<img src="${CLOVER_LOGO_DATA_URL}" width="42" height="42" alt="" style="display:block;margin:0 auto;object-fit:contain" />`;
 
 /**
  * Build print HTML — store and website are separate layouts (not the same ticket).
@@ -452,7 +429,7 @@ function buildStorePrintHtml(receipt: ReceiptData, paperMm: PaperWidthMm) {
 </head>
 <body>
   <div class="center">
-    <div class="logo">${CLOVER_SVG_MARK}</div>
+    <div class="logo">${CLOVER_LOGO_IMG}</div>
     <div class="brand">THE CLOVER</div>
     <div class="tag">Sportswear</div>
     <div class="kind">Store receipt</div>
@@ -557,7 +534,7 @@ function buildWebsitePrintHtml(receipt: ReceiptData, paperMm: PaperWidthMm) {
 </head>
 <body>
   <div class="center">
-    <div class="logo">${CLOVER_SVG_MARK}</div>
+    <div class="logo">${CLOVER_LOGO_IMG}</div>
     <div class="brand">THE CLOVER</div>
     <div class="tag">Sportswear</div>
     <div class="banner">Online order · Packing slip</div>
@@ -680,34 +657,10 @@ export function printReceipt(
 function loadLogoImage(): Promise<HTMLImageElement | null> {
   return new Promise((resolve) => {
     const img = new Image();
-    img.crossOrigin = "anonymous";
     img.onload = () => resolve(img);
-    img.onerror = () => {
-      const svg = new Image();
-      svg.onload = () => resolve(svg);
-      svg.onerror = () => resolve(null);
-      svg.src = `${window.location.origin}/assets/logo-clover.svg`;
-    };
-    img.src = `${window.location.origin}/assets/logo-icon.png`;
+    img.onerror = () => resolve(null);
+    img.src = CLOVER_LOGO_DATA_URL;
   });
-}
-
-function drawCloverFallback(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number) {
-  ctx.save();
-  ctx.strokeStyle = "#000";
-  ctx.lineWidth = Math.max(1.4, r * 0.07);
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
-  const leaf = (ox: number, oy: number) => {
-    ctx.beginPath();
-    ctx.ellipse(cx + ox, cy + oy, r * 0.38, r * 0.38, 0, 0, Math.PI * 2);
-    ctx.stroke();
-  };
-  leaf(0, -r * 0.32);
-  leaf(0, r * 0.32);
-  leaf(-r * 0.32, 0);
-  leaf(r * 0.32, 0);
-  ctx.restore();
 }
 
 /** PNG export — classic receipt layout for phone printers. */
@@ -845,7 +798,6 @@ export async function downloadReceiptPng(
     if (op.k === "logo") {
       const lx = (W - logoSize) / 2;
       if (logo) ctx.drawImage(logo, lx, y, logoSize, logoSize);
-      else drawCloverFallback(ctx, W / 2, y + logoSize / 2, logoSize * 0.42);
       y += logoSize + 4;
       continue;
     }
