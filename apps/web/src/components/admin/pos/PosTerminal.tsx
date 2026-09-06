@@ -328,17 +328,6 @@ export function PosTerminal() {
           </button>
           <button
             type="button"
-            onClick={async () => {
-              const test = buildTestReceipt();
-              setReceipt(test);
-              await downloadReceiptPng(test, paperMm);
-            }}
-            className="btn-soul--glass rounded-full min-h-[44px] px-5 text-[10px]"
-          >
-            Test PNG (phone)
-          </button>
-          <button
-            type="button"
             onClick={load}
             className="btn-soul--glass rounded-full min-h-[44px] px-5 text-[10px]"
           >
@@ -352,36 +341,6 @@ export function PosTerminal() {
           {error}
         </p>
       )}
-
-      <GlassCard className="p-4 text-sm text-soul-muted leading-relaxed space-y-4">
-        <div>
-          <p className="text-xs font-bold tracking-widest uppercase text-soul-ink mb-2">
-            Print from any PC (USB / Bluetooth / network)
-          </p>
-          <ol className="list-decimal pl-5 space-y-1">
-            <li>
-              Connect the printer to <strong>this computer</strong> (USB cable, Bluetooth pairing, or
-              network) until it appears in the system printer list.
-            </li>
-            <li>
-              Set paper to <strong>80mm (XP-80C)</strong>. In the print dialog use{" "}
-              <strong>Scale 100%</strong>, <strong>Margins: None</strong>, and turn off headers/footers.
-            </li>
-            <li>
-              After checkout (or <strong>Test print</strong>), pick the XP-80C and print.
-            </li>
-          </ol>
-        </div>
-        <div>
-          <p className="text-xs font-bold tracking-widest uppercase text-soul-ink mb-2">
-            Optional: phone + PeriPage A40
-          </p>
-          <p className="text-sm">
-            If the printer is only paired to a phone (not the PC), use <strong>Save / share PNG</strong>{" "}
-            or <strong>Test PNG (phone)</strong>, then print the image from the PeriPage app.
-          </p>
-        </div>
-      </GlassCard>
 
       <div className="grid xl:grid-cols-[1.4fr_1fr] gap-4 lg:gap-6">
         {/* Catalog */}
