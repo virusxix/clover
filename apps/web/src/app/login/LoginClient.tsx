@@ -4,7 +4,6 @@
  * Login / register form
  * ---------------------
  * One job: collect credentials and call auth context.
- * Demo hints only show in non-production builds.
  */
 
 import { FormEvent, useEffect, useState } from "react";
@@ -13,8 +12,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { BrandLogo } from "@/components/layout/BrandLogo";
 import { useAuth } from "@/lib/auth-context";
-
-const showDemoHints = process.env.NODE_ENV !== "production";
 
 /** Only allow same-origin relative paths for ?next= redirects. */
 function safeNextPath(raw: string | null): string | null {
@@ -115,12 +112,6 @@ export default function LoginClient() {
         {apiReady === false && (
           <p className="text-[11px] text-amber-800 mb-4 text-center rounded-lg bg-amber-50 border border-amber-200/80 px-3 py-2">
             Server is waking up — first sign-in can take up to a minute on some networks. Keep trying.
-          </p>
-        )}
-
-        {showDemoHints && (
-          <p className="text-[11px] text-soul-muted mb-4 text-center rounded-lg bg-neutral-100/80 px-3 py-2">
-            Local demo only: admin@clover.com / Admin123!
           </p>
         )}
 

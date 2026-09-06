@@ -14,7 +14,7 @@ let pool;
 try {
   pool = await createPool(process.env.DATABASE_URL);
   await runSeed((text, params) => pool.query(text, params));
-  console.log("Catalog seed completed. For demo users + analytics: npm run db:seed:demo");
+  console.log("Catalog seed completed.");
 } catch (err) {
   console.error("Seed failed:", err.message);
   process.exit(1);

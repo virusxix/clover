@@ -46,7 +46,6 @@ npm install
 npm run db:schema
 npm run db:ops
 npm run db:seed
-npm run db:seed:demo    # optional
 ```
 
 ## 3. URLs

@@ -20,15 +20,15 @@ This project is configured for **aws-1-ap-northeast-2** session pooler.
 
 ```powershell
 npm run db:schema
+npm run db:ops
 npm run db:seed
-npm run db:seed:demo   # optional demo users + analytics (database/demo/)
 ```
 
 ## Option B — SQL Editor (always works)
 
 1. Supabase → **SQL Editor** → New query
 2. Paste the contents of `database/schema.sql` → **Run**
-3. Then run `npm run db:seed` and optionally `npm run db:seed:demo` (or paste seed data manually)
+3. Then run `npm run db:ops` and `npm run db:seed` (or paste seed data manually)
 
 ## Verify
 

@@ -60,8 +60,9 @@ ln -sfn ../../../assets apps/web/public/assets
 npm run db:schema
 npm run db:ops
 npm run db:seed
-npm run db:seed:demo    # demo users + analytics sample sales (see database/demo/)
 ```
+
+Create your own admin account in the database (register a user, then set `role = 'admin'`), or insert one via SQL.
 
 ### 5. Run frontend + backend
 
@@ -75,15 +76,6 @@ npm run dev
 | API        | http://localhost:4000   |
 
 Separate: `npm run dev:api` or `npm run dev:web`.
-
-## Demo Accounts
-
-Seeded by `npm run db:seed:demo` (all files under `database/demo/` — delete that folder for real launch).
-
-| Role     | Email             | Password   |
-|----------|-------------------|------------|
-| Customer | demo@clover.com   | Demo1234!  |
-| Admin    | admin@clover.com  | Admin123!  |
 
 ## Features
 

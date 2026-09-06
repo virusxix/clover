@@ -19,7 +19,6 @@ clover/
 ├── database/
 │   ├── schema.sql          # PostgreSQL DDL
 │   ├── seed.js             # Catalog (categories + products)
-│   ├── demo/               # DELETE for real store — users + fake analytics sales
 │   ├── run-schema.js       # Apply schema
 │   └── run-seed.js         # Seed catalog
 ├── assets/                 # Source product images

@@ -11,9 +11,6 @@
     "db:schema": "node database/run-schema.js",
     "db:ops": "node database/run-ops-schema.js",
     "db:seed": "node database/run-seed.js",
-    "db:seed:demo": "node database/demo/run-all.js",
-    "db:seed:analytics": "node database/demo/run-seed-analytics.js",
-    "db:purge:demo": "node database/demo/run-purge.js",
     "assets:optimize": "python scripts/optimize_assets.py"
   },
   "dependencies": {

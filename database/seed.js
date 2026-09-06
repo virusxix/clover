@@ -1,6 +1,5 @@
 /**
  * Seed catalog from THE CLOVER product data (categories + products).
- * Demo users and fake sales live in database/demo/ — not here.
  */
 
 export const CATEGORIES = [
@@ -167,5 +166,5 @@ export async function runSeed(query) {
     }
   }
 
-  console.log("[seed] Catalog seeded. Demo logins/sales: npm run db:seed:demo");
+  console.log("[seed] Catalog seeded.");
 }
