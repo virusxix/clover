@@ -120,6 +120,17 @@ export const PRODUCTS = [
  * Demotes any other admins so only this account stays admin.
  */
 export async function ensureDefaultAdmin(query) {
+  const isProd = process.env.NODE_ENV === "production";
+  const usingDefaultPassword =
+    !process.env.ADMIN_PASSWORD && DEFAULT_ADMIN.password === "Admin123!";
+
+  if (isProd && usingDefaultPassword) {
+    console.warn(
+      "[seed] Refusing default Admin123! in production — set ADMIN_PASSWORD before seeding admin."
+    );
+    return;
+  }
+
   const email = DEFAULT_ADMIN.email.toLowerCase().trim();
   const hash = await bcrypt.hash(DEFAULT_ADMIN.password, 12);
 

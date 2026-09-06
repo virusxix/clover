@@ -88,6 +88,7 @@ export async function createIconicTransfer({
  * Enter ICONIC's monthly sold report.
  * reportMonth = first day of that month (YYYY-MM-01).
  * unitRevenue = what Clover receives per unit from ICONIC.
+ * Idempotent: rejecting a month that already has a report (no double stock deduct).
  */
 export async function createIconicSalesReport({
   reportMonth,
@@ -107,11 +108,19 @@ export async function createIconicSalesReport({
   try {
     await client.query("BEGIN");
 
+    const { rows: existing } = await client.query(
+      `SELECT id FROM iconic_sales_reports WHERE report_month = $1 FOR UPDATE`,
+      [monthDate]
+    );
+    if (existing.length) {
+      const err = new Error("A report for that month already exists — edit is not supported (would double-deduct stock)");
+      err.status = 409;
+      throw err;
+    }
+
     const { rows: rRows } = await client.query(
       `INSERT INTO iconic_sales_reports (report_month, notes, created_by)
        VALUES ($1, $2, $3)
-       ON CONFLICT (report_month) DO UPDATE
-         SET notes = COALESCE(NULLIF(EXCLUDED.notes, ''), iconic_sales_reports.notes)
        RETURNING id`,
       [monthDate, notes, createdBy]
     );

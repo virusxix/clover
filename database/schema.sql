@@ -7,6 +7,7 @@ CREATE TYPE user_role AS ENUM ('customer', 'admin');
 CREATE TYPE gender_category AS ENUM ('men', 'women', 'unisex');
 CREATE TYPE activity_type AS ENUM ('yoga', 'gym', 'running', 'training', 'lifestyle');
 CREATE TYPE order_status AS ENUM (
+  'awaiting_payment',
   'pending',
   'processing',
   'shipped',

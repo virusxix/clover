@@ -47,17 +47,21 @@ function saveSeen(seen: Set<string>) {
 export function ReceptionOrderAlerts() {
   const [banner, setBanner] = useState<FeedOrder | null>(null);
   const [enabled, setEnabled] = useState(true);
-  const [autoPrint, setAutoPrint] = useState(true);
+  const [autoPrint, setAutoPrint] = useState(false);
   const sinceRef = useRef(new Date().toISOString());
   const seenRef = useRef<Set<string>>(new Set());
   const primedRef = useRef(false);
 
   useEffect(() => {
     seenRef.current = loadSeen();
+  }, []);
+
+  useEffect(() => {
+    if (!enabled) return;
     if (typeof Notification !== "undefined" && Notification.permission === "default") {
       Notification.requestPermission().catch(() => {});
     }
-  }, []);
+  }, [enabled]);
 
   useEffect(() => {
     if (!enabled) return;

@@ -5,6 +5,8 @@ import { requireAuth } from "../middleware/auth.js";
 import { resolvePricing } from "../sale-pricing.js";
 import { getSaleDiscountPercent } from "../store-settings.js";
 import { preferWebpUrl } from "../media-url.js";
+import { LOCATIONS } from "../inventory/locations.js";
+import { getQty } from "../inventory/stock-service.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -70,8 +72,22 @@ router.post("/", async (req, res) => {
   );
   if (!variants.length) return res.status(404).json({ error: "Variant not found" });
 
-  const stock = variants[0].stock?.[size] ?? 0;
-  if (stock < quantity) return res.status(400).json({ error: "Insufficient stock" });
+  // Single source of truth: website inventory_levels (not legacy JSONB).
+  const stock = await getQty({ query }, {
+    variantId,
+    locationId: LOCATIONS.WEBSITE,
+    size,
+  });
+
+  const { rows: existing } = await query(
+    `SELECT quantity FROM cart_items
+     WHERE user_id = $1 AND variant_id = $2 AND size = $3`,
+    [req.user.id, variantId, size]
+  );
+  const alreadyInCart = existing[0]?.quantity ?? 0;
+  if (stock < alreadyInCart + quantity) {
+    return res.status(400).json({ error: "Insufficient stock" });
+  }
 
   const { rows } = await query(
     `INSERT INTO cart_items (user_id, product_id, variant_id, size, quantity)
@@ -90,6 +106,22 @@ router.patch("/:id", async (req, res) => {
   if (!quantity || quantity < 1 || quantity > 10) {
     return res.status(400).json({ error: "Quantity must be 1–10" });
   }
+
+  const { rows: lines } = await query(
+    `SELECT id, variant_id, size FROM cart_items WHERE id = $1 AND user_id = $2`,
+    [req.params.id, req.user.id]
+  );
+  if (!lines.length) return res.status(404).json({ error: "Cart item not found" });
+
+  const stock = await getQty({ query }, {
+    variantId: lines[0].variant_id,
+    locationId: LOCATIONS.WEBSITE,
+    size: lines[0].size,
+  });
+  if (stock < quantity) {
+    return res.status(400).json({ error: "Insufficient stock" });
+  }
+
   await query(
     `UPDATE cart_items SET quantity = $3 WHERE id = $1 AND user_id = $2`,
     [req.params.id, req.user.id, quantity]

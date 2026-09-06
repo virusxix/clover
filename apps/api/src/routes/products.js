@@ -76,7 +76,11 @@ router.get("/", async (req, res) => {
     params.push(color);
   }
   if (size) {
-    conditions.push(`(v.stock->>$${idx})::int > 0`);
+    conditions.push(`EXISTS (
+      SELECT 1 FROM inventory_levels il
+      WHERE il.variant_id = v.id AND il.location_id = 'website'
+        AND il.size = $${idx} AND il.qty > 0
+    )`);
     params.push(size);
     idx++;
   }
@@ -199,10 +203,7 @@ router.get("/:slug", async (req, res) => {
       },
       variants: variants.map((v) => {
         const pricing = resolvePricing(v.price_cents, product.tags, salePercent);
-        const stock =
-          websiteStock[v.id] && Object.keys(websiteStock[v.id]).length
-            ? websiteStock[v.id]
-            : v.stock;
+        const stock = websiteStock[v.id] || {};
         return {
           id: v.id,
           key: v.variant_key,

@@ -149,6 +149,14 @@ CROSS JOIN LATERAL jsonb_each_text(v.stock) AS kv
 WHERE (kv.value)::int IS NOT NULL
 ON CONFLICT (variant_id, location_id, size) DO NOTHING;
 
+-- Website order status: unpaid offline payments before stock is committed
+DO $$ BEGIN
+  ALTER TYPE order_status ADD VALUE IF NOT EXISTS 'awaiting_payment' BEFORE 'pending';
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+  WHEN undefined_object THEN NULL;
+END $$;
+
 -- Default cost ~45% of sell price where unset (edit in admin later)
 UPDATE product_variants
 SET cost_cents = GREATEST(0, ROUND(price_cents * 0.45))

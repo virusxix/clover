@@ -14,7 +14,14 @@ import { loadPaperWidth, printReceipt, type ReceiptData } from "@/components/adm
 import { api } from "@/lib/api";
 
 const PAGE_SIZE = 12;
-const STATUSES = ["pending", "processing", "shipped", "delivered", "cancelled"] as const;
+const STATUSES = [
+  "awaiting_payment",
+  "pending",
+  "processing",
+  "shipped",
+  "delivered",
+  "cancelled",
+] as const;
 
 export type AdminOrder = {
   id: string;
@@ -129,7 +136,8 @@ export function AdminOrdersTab({ orders, onStatusChange }: Props) {
             <span className="text-soul-muted font-semibold text-sm ml-2">{filtered.length}</span>
           </h2>
           <p className="text-xs text-soul-muted mt-1">
-            New website orders arrive as <strong>pending</strong> — start packaging, then ship.
+            New website orders: <strong>awaiting payment</strong> (KBZPay/card) or{" "}
+            <strong>pending</strong> (COD) — confirm payment, then pack and ship.
           </p>
         </div>
       </div>
@@ -218,14 +226,16 @@ export function AdminOrdersTab({ orders, onStatusChange }: Props) {
                       {place && <span className="text-soul-muted">{place}</span>}
                       <span
                         className={`uppercase tracking-wide text-[10px] font-bold ${
-                          o.status === "pending"
-                            ? "text-amber-800"
-                            : o.status === "processing"
-                              ? "text-sky-800"
-                              : "text-soul-muted"
+                          o.status === "awaiting_payment"
+                            ? "text-orange-700"
+                            : o.status === "pending"
+                              ? "text-amber-800"
+                              : o.status === "processing"
+                                ? "text-sky-800"
+                                : "text-soul-muted"
                         }`}
                       >
-                        {o.status}
+                        {o.status === "awaiting_payment" ? "awaiting payment" : o.status}
                       </span>
                     </p>
                   </div>
@@ -235,6 +245,16 @@ export function AdminOrdersTab({ orders, onStatusChange }: Props) {
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                  {o.status === "awaiting_payment" && (
+                    <button
+                      type="button"
+                      disabled={savingId === o.id}
+                      onClick={() => changeStatus(o.id, "processing")}
+                      className="btn-soul--dark rounded-full px-4 min-h-[44px] text-[10px] disabled:opacity-50"
+                    >
+                      {savingId === o.id ? "Updating…" : "Confirm payment & pack"}
+                    </button>
+                  )}
                   {o.status === "pending" && (
                     <button
                       type="button"

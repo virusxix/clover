@@ -126,11 +126,13 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
       const payload =
         subpath === "auth/refresh"
           ? data.error
-            ? data
+            ? { error: data.error }
             : { ok: true }
           : data.user
             ? { user: data.user }
-            : data;
+            : data.error
+              ? { error: data.error }
+              : { ok: true };
 
       const res = NextResponse.json(payload, { status: lastStatus, headers: out });
 
@@ -155,7 +157,11 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
       }
       return res;
     } catch {
-      /* fall through — return raw body */
+      // Never forward raw auth bodies (may contain JWTs).
+      return NextResponse.json(
+        { error: "Auth response could not be parsed" },
+        { status: lastStatus >= 400 ? lastStatus : 502, headers: out }
+      );
     }
   }
 

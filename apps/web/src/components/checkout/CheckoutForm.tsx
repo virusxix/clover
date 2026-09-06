@@ -18,6 +18,7 @@ import {
 } from "@/components/checkout/OrderSummaryCard";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { useCart } from "@/lib/cart-context";
 import { MM_REGIONS, computeOrderTotals } from "@/lib/checkout";
 import { formatMMK } from "@/lib/currency";
 import {
@@ -32,6 +33,7 @@ const inputClass =
 export function CheckoutForm() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
+  const { refreshCart } = useCart();
 
   const [items, setItems] = useState<CheckoutCartItem[]>([]);
   const [subtotal, setSubtotal] = useState(0);
@@ -104,6 +106,7 @@ export function CheckoutForm() {
           payment: { method: paymentMethod },
         },
       });
+      await refreshCart();
       router.push(`/order-confirmation?id=${res.orderId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Checkout failed");

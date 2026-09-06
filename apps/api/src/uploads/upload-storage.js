@@ -32,10 +32,11 @@ function safeExt(originalName = "", mime = "") {
     "image/heif": ".heif",
     "image/bmp": ".bmp",
     "image/tiff": ".tiff",
-    "image/svg+xml": ".svg",
   };
   return map[mime] || ".img";
 }
+
+const BLOCKED_IMAGE_TYPES = new Set(["image/svg+xml", "image/svg"]);
 
 const storage = multer.diskStorage({
   destination(_req, _file, cb) {
@@ -50,13 +51,18 @@ const storage = multer.diskStorage({
 
 /**
  * Multer middleware — single file field name "image".
- * accept: any MIME that starts with image/
+ * Raster images only (SVG blocked — XSS if served as a document).
  */
 export const uploadProductImage = multer({
   storage,
   limits: { fileSize: 15 * 1024 * 1024 }, // 15MB
   fileFilter(_req, file, cb) {
-    if (file.mimetype && file.mimetype.startsWith("image/")) {
+    const mime = (file.mimetype || "").toLowerCase();
+    if (BLOCKED_IMAGE_TYPES.has(mime) || mime.includes("svg")) {
+      cb(new Error("SVG uploads are not allowed"));
+      return;
+    }
+    if (mime.startsWith("image/")) {
       cb(null, true);
       return;
     }

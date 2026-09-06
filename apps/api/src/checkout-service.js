@@ -1,8 +1,9 @@
 /**
  * Checkout service
  * ----------------
- * Place an order from the cart, deduct WEBSITE inventory, record payment method.
- * New orders start as `pending` so reception can package them.
+ * Place an order from the cart.
+ * COD: status pending + deduct WEBSITE stock immediately.
+ * KBZPay/card: status awaiting_payment — stock commits when admin confirms payment.
  */
 
 import crypto from "crypto";
@@ -32,6 +33,10 @@ export async function placeOrder({ userId, shipping, paymentMethod }) {
     );
   }
 
+  // Offline methods do not hold stock until reception confirms payment.
+  const commitStockNow = paymentMethod === "cod";
+  const orderStatus = commitStockNow ? "pending" : "awaiting_payment";
+
   const client = await getPool().then((p) => p.connect());
 
   try {
@@ -54,9 +59,14 @@ export async function placeOrder({ userId, shipping, paymentMethod }) {
       totals,
       paymentRef,
       paymentMethod,
+      status: orderStatus,
     });
 
-    await insertItemsAndDecrementWebsiteStock(client, orderId, cartRows, salePercent);
+    await insertOrderItems(client, orderId, cartRows, salePercent);
+
+    if (commitStockNow) {
+      await decrementWebsiteStock(client, orderId, cartRows);
+    }
 
     await client.query(`DELETE FROM cart_items WHERE user_id = $1`, [userId]);
     await client.query("COMMIT");
@@ -65,11 +75,12 @@ export async function placeOrder({ userId, shipping, paymentMethod }) {
       orderId,
       paymentRef,
       paymentMethod,
+      status: orderStatus,
       total: totals.total,
       message:
         paymentMethod === "cod"
           ? "Order placed — pay cash on delivery"
-          : "Order placed — awaiting packaging",
+          : "Order placed — awaiting payment confirmation",
     };
   } catch (err) {
     await client.query("ROLLBACK").catch(() => {});
@@ -113,7 +124,7 @@ function buildTotals(cartRows, salePercent) {
   return computeOrderTotals(subtotalMmk);
 }
 
-async function insertOrder(client, { userId, shipping, totals, paymentRef, paymentMethod }) {
+async function insertOrder(client, { userId, shipping, totals, paymentRef, paymentMethod, status }) {
   const sh = shipping;
   const { rows } = await client.query(
     `INSERT INTO orders (
@@ -121,10 +132,11 @@ async function insertOrder(client, { userId, shipping, totals, paymentRef, payme
        shipping_name, shipping_line1, shipping_line2, shipping_city,
        shipping_state, shipping_zip, shipping_country, payment_ref,
        payment_method, shipping_phone
-     ) VALUES ($1,'pending',$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+     ) VALUES ($1,$2::order_status,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
      RETURNING id`,
     [
       userId,
+      status,
       totals.subtotal,
       totals.shipping,
       totals.tax,
@@ -144,7 +156,7 @@ async function insertOrder(client, { userId, shipping, totals, paymentRef, payme
   return rows[0].id;
 }
 
-async function insertItemsAndDecrementWebsiteStock(client, orderId, cartRows, salePercent) {
+async function insertOrderItems(client, orderId, cartRows, salePercent) {
   for (const item of cartRows) {
     const unitPrice = getEffectivePriceMmk(item.price_cents, item.tags, salePercent);
 
@@ -164,7 +176,11 @@ async function insertItemsAndDecrementWebsiteStock(client, orderId, cartRows, sa
         unitPrice,
       ]
     );
+  }
+}
 
+async function decrementWebsiteStock(client, orderId, cartRows) {
+  for (const item of cartRows) {
     await adjustStock(client, {
       variantId: item.variant_id,
       locationId: LOCATIONS.WEBSITE,

@@ -449,7 +449,8 @@ router.get("/orders", async (_req, res) => {
 router.get("/orders/pending-count", async (_req, res) => {
   try {
     const { rows } = await query(
-      `SELECT COUNT(*)::int AS count FROM orders WHERE status = 'pending'`
+      `SELECT COUNT(*)::int AS count FROM orders
+       WHERE status IN ('pending', 'awaiting_payment')`
     );
     res.json({ count: rows[0]?.count ?? 0 });
   } catch (err) {
@@ -553,15 +554,28 @@ router.get("/orders/:id/receipt", async (req, res) => {
 });
 
 router.patch("/orders/:id/status", async (req, res) => {
-  const status = z.enum(["pending", "processing", "shipped", "delivered", "cancelled"]).parse(
-    req.body.status
-  );
-  const { rows } = await query(
-    `UPDATE orders SET status = $2 WHERE id = $1 RETURNING *`,
-    [req.params.id, status]
-  );
-  if (!rows.length) return res.status(404).json({ error: "Not found" });
-  res.json({ order: rows[0] });
+  try {
+    const status = z
+      .enum([
+        "awaiting_payment",
+        "pending",
+        "processing",
+        "shipped",
+        "delivered",
+        "cancelled",
+      ])
+      .parse(req.body.status);
+
+    const { updateOrderStatus } = await import("../orders/order-status-service.js");
+    const order = await updateOrderStatus(req.params.id, status, {
+      adminUserId: req.user?.id || null,
+    });
+    res.json({ order });
+  } catch (err) {
+    const code = err.status || (err.name === "ZodError" ? 400 : 500);
+    if (code >= 500) console.error("[admin/orders/:id/status]", err);
+    res.status(code).json({ error: err.message || "Failed to update status" });
+  }
 });
 
 /** GET /api/admin/users */
