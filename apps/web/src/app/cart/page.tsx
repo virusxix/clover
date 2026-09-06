@@ -101,35 +101,37 @@ export default function CartPage() {
                   <p className="text-sm text-soul-muted mt-0.5">
                     {item.colorName} · Size {item.size}
                   </p>
-                  <PriceDisplay
-                    price={item.price}
-                    compareAtPrice={item.compareAtPrice}
-                    onSale={item.onSale}
-                    size="sm"
-                    className="mt-1"
-                  />
-                  <div className="mt-3 inline-flex items-center gap-1 rounded-full border border-black/10 bg-white/80 p-0.5">
-                    <button
-                      type="button"
-                      aria-label="Decrease quantity"
-                      disabled={updatingId === item.id}
-                      onClick={() => void setQty(item.id, item.quantity - 1)}
-                      className="w-10 h-10 rounded-full text-lg font-bold touch-manipulation disabled:opacity-40 hover:bg-black/5"
-                    >
-                      −
-                    </button>
-                    <span className="min-w-[2rem] text-center text-base font-bold tabular-nums">
-                      {item.quantity}
-                    </span>
-                    <button
-                      type="button"
-                      aria-label="Increase quantity"
-                      disabled={updatingId === item.id || item.quantity >= 10}
-                      onClick={() => void setQty(item.id, item.quantity + 1)}
-                      className="w-10 h-10 rounded-full text-lg font-bold touch-manipulation disabled:opacity-40 hover:bg-black/5"
-                    >
-                      +
-                    </button>
+                  <div className="mt-3 flex items-center justify-between gap-4">
+                    <PriceDisplay
+                      price={item.price}
+                      compareAtPrice={item.compareAtPrice}
+                      onSale={item.onSale}
+                      size="sm"
+                      className="shrink-0"
+                    />
+                    <div className="inline-flex items-center gap-1 rounded-full border border-black/10 bg-white/80 p-0.5 shrink-0">
+                      <button
+                        type="button"
+                        aria-label="Decrease quantity"
+                        disabled={updatingId === item.id}
+                        onClick={() => void setQty(item.id, item.quantity - 1)}
+                        className="w-10 h-10 rounded-full text-lg font-bold touch-manipulation disabled:opacity-40 hover:bg-black/5"
+                      >
+                        −
+                      </button>
+                      <span className="min-w-[2rem] text-center text-base font-bold tabular-nums">
+                        {item.quantity}
+                      </span>
+                      <button
+                        type="button"
+                        aria-label="Increase quantity"
+                        disabled={updatingId === item.id || item.quantity >= 10}
+                        onClick={() => void setQty(item.id, item.quantity + 1)}
+                        className="w-10 h-10 rounded-full text-lg font-bold touch-manipulation disabled:opacity-40 hover:bg-black/5"
+                      >
+                        +
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
