@@ -1,7 +1,12 @@
 /**
  * JWT authentication middleware
+ * -----------------------------
+ * Layer 1: valid access token (cookie or Bearer)
+ * Layer 2 (admin): live DB role check so demotions take effect immediately
  */
+
 import { verifyToken } from "../utils/jwt.js";
+import { query } from "../db.js";
 
 export function requireAuth(req, res, next) {
   const header = req.headers.authorization;
@@ -23,9 +28,21 @@ export function requireAuth(req, res, next) {
   }
 }
 
-export function requireAdmin(req, res, next) {
+export async function requireAdmin(req, res, next) {
   if (req.user?.role !== "admin") {
     return res.status(403).json({ error: "Admin access required" });
   }
-  next();
+
+  try {
+    const { rows } = await query(`SELECT role FROM users WHERE id = $1`, [req.user.id]);
+    if (!rows.length || rows[0].role !== "admin") {
+      return res.status(403).json({ error: "Admin access required" });
+    }
+    // Prefer live role over possibly-stale JWT claim
+    req.user.role = "admin";
+    next();
+  } catch (err) {
+    console.error("[requireAdmin]", err.message);
+    return res.status(503).json({ error: "Could not verify admin access" });
+  }
 }

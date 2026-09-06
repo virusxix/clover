@@ -10,6 +10,7 @@ if (process.env.VERCEL && !/^https?:\/\//i.test(rawApi)) {
 }
 
 const nextConfig = {
+  poweredByHeader: false,
   images: {
     formats: ["image/avif", "image/webp"],
     deviceSizes: [640, 750, 828, 1080, 1200],
@@ -28,12 +29,43 @@ const nextConfig = {
     return [{ source: "/uploads/:path*", destination: `${apiBase}/uploads/:path*` }];
   },
   async headers() {
+    const isProd = process.env.NODE_ENV === "production";
+    const security = [
+      { key: "X-Content-Type-Options", value: "nosniff" },
+      { key: "X-Frame-Options", value: "DENY" },
+      { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+      { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+      { key: "X-DNS-Prefetch-Control", value: "on" },
+      {
+        key: "Content-Security-Policy",
+        value: [
+          "default-src 'self'",
+          "base-uri 'self'",
+          "form-action 'self'",
+          "frame-ancestors 'none'",
+          "object-src 'none'",
+          "img-src 'self' data: blob: https:",
+          "font-src 'self' data: https://fonts.gstatic.com",
+          "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+          // Next.js needs inline/eval in some builds; tighten further when moving off Google Fonts CDN.
+          "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+          `connect-src 'self' ${rawApi || "http://localhost:4000"} https:`,
+          "upgrade-insecure-requests",
+        ].join("; "),
+      },
+    ];
+    if (isProd) {
+      security.push({
+        key: "Strict-Transport-Security",
+        value: "max-age=63072000; includeSubDomains; preload",
+      });
+    }
+
     return [
+      { source: "/:path*", headers: security },
       {
         source: "/assets/:path*",
-        headers: [
-          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
-        ],
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
       },
     ];
   },

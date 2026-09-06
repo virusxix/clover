@@ -57,7 +57,13 @@ ensureUploadDir();
 // Render (and most hosts) sit behind a proxy — needed for correct rate-limit IPs.
 app.set("trust proxy", 1);
 
-app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    contentSecurityPolicy: false, // API returns JSON; CSP is enforced on the Next.js storefront
+    referrerPolicy: { policy: "no-referrer" },
+  })
+);
 app.use(
   cors({
     origin: corsOrigin,
@@ -67,8 +73,19 @@ app.use(
 app.use(express.json({ limit: "2mb" }));
 app.use(cookieParser());
 
-// Serve uploaded product photos at /uploads/*
-app.use("/uploads", express.static(UPLOAD_DIR, { maxAge: "30d", fallthrough: true }));
+// Serve uploaded product photos at /uploads/* (raster only; SVG uploads blocked)
+app.use(
+  "/uploads",
+  express.static(UPLOAD_DIR, {
+    maxAge: "30d",
+    fallthrough: true,
+    setHeaders(res) {
+      res.setHeader("X-Content-Type-Options", "nosniff");
+      res.setHeader("Content-Disposition", "inline");
+      res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    },
+  })
+);
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -76,6 +93,38 @@ const authLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many attempts, try again later" },
+});
+
+const checkoutLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 40,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many checkout attempts, try again later" },
+});
+
+const adminLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 600,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many admin requests, slow down" },
+});
+
+const uploadLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many uploads, try again later" },
+});
+
+const apiLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000,
+  max: 180,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests, try again shortly" },
 });
 
 /**
@@ -92,20 +141,29 @@ app.get("/api/health", async (_req, res) => {
   }
 });
 
+app.use("/api", apiLimiter);
 app.use("/api/auth", authLimiter, authRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/cart", cartRoutes);
-app.use("/api/orders", orderRoutes);
+app.use("/api/orders", checkoutLimiter, orderRoutes);
 app.use("/api/wishlist", wishlistRoutes);
-app.use("/api/admin", adminRoutes);
-app.use("/api/admin/ops", adminOpsRoutes);
-app.use("/api/admin/upload", adminUploadRoutes);
+app.use("/api/admin", adminLimiter, adminRoutes);
+app.use("/api/admin/ops", adminLimiter, adminOpsRoutes);
+app.use("/api/admin/upload", uploadLimiter, adminUploadRoutes);
 
 app.use((err, _req, res, _next) => {
   console.error("[unhandled]", err);
+  if (err?.message?.startsWith("CORS blocked")) {
+    return res.status(403).json({ error: "Origin not allowed" });
+  }
   res.status(500).json({ error: "Internal server error" });
 });
 
 app.listen(PORT, () => {
   console.log(`THE CLOVER API running on http://localhost:${PORT}`);
+  if (process.env.CORS_VERCEL_PREVIEWS === "true") {
+    console.warn(
+      "[security] CORS_VERCEL_PREVIEWS=true — any *.vercel.app origin can use credentialed cookies. Disable in production."
+    );
+  }
 });
