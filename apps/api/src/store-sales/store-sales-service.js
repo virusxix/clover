@@ -109,7 +109,12 @@ export async function createStoreSale({
       total: sale.total_cents,
       notes: sale.notes,
       paymentMethod,
-      items: resolved,
+      channel: "store",
+      items: resolved.map((line) => ({
+        ...line,
+        colorName: line.variantName,
+        lineTotal: line.unitPrice * line.quantity,
+      })),
     };
   } catch (err) {
     await client.query("ROLLBACK").catch(() => {});
@@ -163,15 +168,18 @@ export async function getStoreSaleById(db, saleId) {
     total: sale.total_cents,
     notes: sale.notes,
     paymentMethod: parsePayMethod(sale.notes),
+    channel: "store",
     items: items.map((i) => ({
       variantId: i.variant_id,
       productName: i.product_name,
       productCode: i.product_code,
+      colorName: i.variant_name,
       variantName: i.variant_name,
       size: i.size,
       quantity: i.quantity,
       unitPrice: i.unit_price_cents,
       unitCost: i.unit_cost_cents,
+      lineTotal: i.unit_price_cents * i.quantity,
     })),
   };
 }

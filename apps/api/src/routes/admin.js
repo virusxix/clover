@@ -510,8 +510,11 @@ router.get("/orders/:id/receipt", async (req, res) => {
       saleId: o.id,
       soldAt: o.created_at,
       total: o.total_cents,
+      shippingCents: o.shipping_cents || 0,
+      taxCents: o.tax_cents || 0,
       paymentMethod: o.payment_method || "card",
-      notes: `Web order · ${o.shipping_city || ""}${o.shipping_state ? `, ${o.shipping_state}` : ""}`,
+      channel: "website",
+      notes: "",
       customerName: o.shipping_name || o.full_name || "",
       customerPhone: o.shipping_phone || "",
       customerAddress: [o.shipping_line1, o.shipping_line2, o.shipping_city, o.shipping_state]
