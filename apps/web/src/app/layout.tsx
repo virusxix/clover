@@ -14,7 +14,8 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "THE CLOVER | Premium Sportswear",
-  description: "Premium gym sportswear and athleisure — performance gear for training and everyday movement.",
+  description:
+    "Premium gym sportswear and athleisure — performance gear for training and everyday movement.",
   icons: { icon: "/assets/logo-icon.png", apple: "/assets/logo-icon.png" },
 };
 
@@ -30,9 +31,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <html lang="en">
-      <head>
-        {apiOrigin ? <link rel="dns-prefetch" href={apiOrigin} /> : null}
-      </head>
+      <head>{apiOrigin ? <link rel="dns-prefetch" href={apiOrigin} /> : null}</head>
       <body className={`${inter.variable} font-sans min-h-screen flex flex-col overflow-x-hidden`}>
         <AuthProvider>
           <Suspense fallback={<div className="nav-spacer" aria-hidden />}>

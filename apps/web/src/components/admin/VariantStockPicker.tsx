@@ -5,7 +5,7 @@
  * One job: choose a catalog variant + size without typing UUIDs.
  */
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 export const ADMIN_SIZES = ["XS", "S", "M", "L", "XL"] as const;
 
@@ -90,6 +90,14 @@ export function VariantStockPicker({
   emptyLabel = "Select product…",
   disabled,
 }: Props) {
+  const [filter, setFilter] = useState("");
+
+  const filtered = useMemo(() => {
+    const needle = filter.trim().toLowerCase();
+    if (!needle) return variants;
+    return variants.filter((v) => v.label.toLowerCase().includes(needle));
+  }, [variants, filter]);
+
   const sizes = useMemo(() => {
     const found = variants.find((v) => v.variantId === variantId);
     return found?.sizes?.length ? found.sizes : [...ADMIN_SIZES];
@@ -97,38 +105,72 @@ export function VariantStockPicker({
 
   return (
     <div className="space-y-3">
-      <select
-        required
-        disabled={disabled}
-        value={variantId}
-        onChange={(e) => {
-          const id = e.target.value;
-          const found = variants.find((v) => v.variantId === id);
-          onVariantChange(id, found?.sizes ?? [...ADMIN_SIZES], found?.price);
-        }}
-        className={field}
-      >
-        <option value="">{emptyLabel}</option>
-        {variants.map((v) => (
-          <option key={v.variantId} value={v.variantId}>
-            {v.label}
-          </option>
-        ))}
-      </select>
-      <select
-        required
-        disabled={disabled || !variantId}
-        value={size}
-        onChange={(e) => onSizeChange(e.target.value)}
-        className={field}
-        aria-label="Size"
-      >
-        {sizes.map((s) => (
-          <option key={s} value={s}>
-            {s}
-          </option>
-        ))}
-      </select>
+      <div>
+        <label className="block text-[11px] font-semibold text-soul-muted mb-1">
+          Find product / code
+        </label>
+        <input
+          type="search"
+          disabled={disabled}
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          className={field}
+          placeholder="e.g. s01pljk"
+          aria-label="Filter products"
+          autoComplete="off"
+          spellCheck={false}
+        />
+        {filter.trim() ? (
+          <p className="text-[11px] text-soul-muted mt-1">
+            {filtered.length} match{filtered.length === 1 ? "" : "es"}
+          </p>
+        ) : (
+          <p className="text-[11px] text-transparent mt-1 select-none" aria-hidden>
+            &nbsp;
+          </p>
+        )}
+      </div>
+
+      <div className="grid grid-cols-[1fr_5.5rem] gap-2 items-end">
+        <div className="min-w-0">
+          <label className="block text-[11px] font-semibold text-soul-muted mb-1">Product</label>
+          <select
+            required
+            disabled={disabled}
+            value={variantId}
+            onChange={(e) => {
+              const id = e.target.value;
+              const found = variants.find((v) => v.variantId === id);
+              onVariantChange(id, found?.sizes ?? [...ADMIN_SIZES], found?.price);
+            }}
+            className={field}
+          >
+            <option value="">{emptyLabel}</option>
+            {filtered.map((v) => (
+              <option key={v.variantId} value={v.variantId}>
+                {v.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-[11px] font-semibold text-soul-muted mb-1">Size</label>
+          <select
+            required
+            disabled={disabled || !variantId}
+            value={size}
+            onChange={(e) => onSizeChange(e.target.value)}
+            className={field}
+            aria-label="Size"
+          >
+            {sizes.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
     </div>
   );
 }

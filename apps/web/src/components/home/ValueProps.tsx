@@ -1,10 +1,30 @@
 import { GlassCard } from "@/components/ui/GlassCard";
 
 const ITEMS = [
-  { icon: "🚚", title: "Free Shipping Over 150,000 Ks", sub: "On all orders in Myanmar", link: "Shop Now" },
-  { icon: "📦", title: "Easy Returns", sub: "30-day hassle-free returns", link: "Read More" },
-  { icon: "🛡", title: "Secure Checkout", sub: "No card data collected", link: "Learn More" },
-  { icon: "🏷", title: "Student Discount", sub: "use code: STUDENT30", link: "Apply Code" },
+  {
+    icon: "🚚",
+    title: "Free Shipping Over 150,000 Ks",
+    sub: "On all orders in Myanmar",
+    link: "Shop Now",
+  },
+  {
+    icon: "📦",
+    title: "Easy Returns",
+    sub: "30-day hassle-free returns",
+    link: "Read More",
+  },
+  {
+    icon: "🛡",
+    title: "Secure Checkout",
+    sub: "No card data collected",
+    link: "Learn More",
+  },
+  {
+    icon: "🏷",
+    title: "Student Discount",
+    sub: "use code: STUDENT30",
+    link: "Apply Code",
+  },
 ];
 
 export function ValueProps() {

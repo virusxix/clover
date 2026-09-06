@@ -123,7 +123,10 @@ export function ShopContent({
           className="w-full flex items-center justify-between gap-3 px-4 py-3.5 rounded-2xl glass text-sm font-semibold min-h-[48px] touch-manipulation"
           aria-expanded={filtersOpen}
         >
-          <span>Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}</span>
+          <span>
+            Filters
+            {activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+          </span>
           <span className="text-soul-muted">{filtersOpen ? "▲" : "▼"}</span>
         </button>
         {filtersOpen && (

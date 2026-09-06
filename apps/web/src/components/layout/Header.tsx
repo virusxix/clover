@@ -78,7 +78,11 @@ export function Header() {
             <Link href="/account/wishlist" className="nav-link-pill min-w-[2.25rem] justify-center" aria-label="Wishlist">
               ♥
             </Link>
-            <Link href="/cart" className="nav-link-pill relative min-w-[2.5rem] justify-center px-2.5 sm:px-3.5" aria-label="Shopping bag">
+            <Link
+              href="/cart"
+              className="nav-link-pill relative min-w-[2.5rem] justify-center px-2.5 sm:px-3.5"
+              aria-label="Shopping bag"
+            >
               <span className="hidden sm:inline">Bag</span>
               <span className="sm:hidden text-xs font-bold">Bag</span>
               <span className="absolute top-0 right-0.5 sm:right-1 w-4 h-4 bg-black text-white text-[9px] rounded-full flex items-center justify-center font-bold">
@@ -130,11 +134,17 @@ export function Header() {
             <hr className="border-black/5 my-2" />
             {user ? (
               <>
-                <Link href="/account" className="px-4 py-3.5 rounded-xl text-sm font-semibold hover:bg-black/5 min-h-[44px] flex items-center">
+                <Link
+                  href="/account"
+                  className="px-4 py-3.5 rounded-xl text-sm font-semibold hover:bg-black/5 min-h-[44px] flex items-center"
+                >
                   My account
                 </Link>
                 {isAdmin && (
-                  <Link href="/admin" className="px-4 py-3.5 rounded-xl text-sm font-semibold hover:bg-black/5 min-h-[44px] flex items-center">
+                  <Link
+                    href="/admin"
+                    className="px-4 py-3.5 rounded-xl text-sm font-semibold hover:bg-black/5 min-h-[44px] flex items-center"
+                  >
                     Admin dashboard
                   </Link>
                 )}
@@ -150,7 +160,10 @@ export function Header() {
                 </button>
               </>
             ) : (
-              <Link href="/login" className="px-4 py-3.5 rounded-xl text-sm font-semibold hover:bg-black/5 min-h-[44px] flex items-center">
+              <Link
+                href="/login"
+                className="px-4 py-3.5 rounded-xl text-sm font-semibold hover:bg-black/5 min-h-[44px] flex items-center"
+              >
                 Sign in / Register
               </Link>
             )}

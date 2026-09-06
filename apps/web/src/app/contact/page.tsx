@@ -7,7 +7,7 @@ export default function ContactPage() {
         <h1 className="text-3xl font-black tracking-tight mb-4">Need Help?</h1>
         <p className="text-soul-muted mb-6">Our team is here for sizing, orders, and returns.</p>
         <p className="font-semibold">support@theclover.com</p>
-        <p className="text-sm text-soul-muted mt-2">Mon–Fri · 9am–6pm EST</p>
+        <p className="text-sm text-soul-muted mt-2">Mon–Fri · 9am–6pm</p>
       </GlassCard>
     </div>
   );

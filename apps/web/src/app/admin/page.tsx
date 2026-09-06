@@ -14,6 +14,8 @@ import { AdminAnalyticsTab } from "@/components/admin/AdminAnalyticsTab";
 import { AdminInventoryTab } from "@/components/admin/AdminInventoryTab";
 import { AdminStoreTab } from "@/components/admin/AdminStoreTab";
 import { AdminIconicTab } from "@/components/admin/AdminIconicTab";
+import { AdminOrdersTab, type AdminOrder } from "@/components/admin/AdminOrdersTab";
+import { AdminUsersTab, type AdminUser } from "@/components/admin/AdminUsersTab";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { api } from "@/lib/api";
 import { formatMMK } from "@/lib/currency";
@@ -53,8 +55,8 @@ export default function AdminPage() {
   const [tab, setTab] = useState<Tab>("dashboard");
   const [dash, setDash] = useState<Dashboard | null>(null);
   const [products, setProducts] = useState<AdminProduct[]>([]);
-  const [orders, setOrders] = useState<Record<string, unknown>[]>([]);
-  const [users, setUsers] = useState<Record<string, unknown>[]>([]);
+  const [orders, setOrders] = useState<AdminOrder[]>([]);
+  const [users, setUsers] = useState<AdminUser[]>([]);
   const [saleDiscountPercent, setSaleDiscountPercent] = useState(20);
 
   useEffect(() => {
@@ -73,6 +75,18 @@ export default function AdminPage() {
       .catch(() => {});
   };
 
+  const loadOrders = () => {
+    api<{ orders: AdminOrder[] }>("/api/admin/orders")
+      .then((d) => setOrders(d.orders || []))
+      .catch(() => setOrders([]));
+  };
+
+  const loadUsers = () => {
+    api<{ users: AdminUser[] }>("/api/admin/users")
+      .then((d) => setUsers(d.users || []))
+      .catch(() => setUsers([]));
+  };
+
   useEffect(() => {
     if (user?.role !== "admin") return;
     loadSettings();
@@ -80,21 +94,15 @@ export default function AdminPage() {
       api<Dashboard>("/api/admin/dashboard").then(setDash).catch(() => setDash(null));
     }
     if (tab === "products") loadProducts();
-    if (tab === "orders") {
-      api<{ orders: Record<string, unknown>[] }>("/api/admin/orders")
-        .then((d) => setOrders(d.orders))
-        .catch(() => setOrders([]));
-    }
-    if (tab === "users") {
-      api<{ users: Record<string, unknown>[] }>("/api/admin/users")
-        .then((d) => setUsers(d.users))
-        .catch(() => setUsers([]));
-    }
+    if (tab === "orders") loadOrders();
+    if (tab === "users") loadUsers();
   }, [tab, user]);
 
   const updateStatus = async (orderId: string, status: string) => {
     await api(`/api/admin/orders/${orderId}/status`, { method: "PATCH", json: { status } });
-    setTab("orders");
+    setOrders((prev) =>
+      prev.map((o) => (o.id === orderId ? { ...o, status } : o))
+    );
   };
 
   if (loading || !user || user.role !== "admin") return null;
@@ -106,16 +114,16 @@ export default function AdminPage() {
       </h1>
 
       <div className="flex gap-2 mb-6 sm:mb-8 overflow-x-auto pb-1 -mx-3 px-3 sm:mx-0 sm:px-0 scrollbar-none snap-x snap-mandatory">
-        {TABS.map((t) => (
+        {TABS.map((tabItem) => (
           <button
-            key={t.id}
+            key={tabItem.id}
             type="button"
-            onClick={() => setTab(t.id)}
+            onClick={() => setTab(tabItem.id)}
             className={`shrink-0 snap-start px-4 py-2.5 sm:py-2 rounded-full text-xs font-bold tracking-widest uppercase transition-all min-h-[44px] ${
-              tab === t.id ? "bg-black text-white" : "glass hover:shadow-card"
+              tab === tabItem.id ? "bg-black text-white" : "glass hover:shadow-card"
             }`}
           >
-            {t.label}
+            {tabItem.label}
           </button>
         ))}
       </div>
@@ -170,47 +178,10 @@ export default function AdminPage() {
       )}
 
       {tab === "orders" && (
-        <div className="space-y-3">
-          {orders.map((o) => (
-            <GlassCard key={String(o.id)} className="p-4">
-              <div className="flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-2 mb-3">
-                <p className="font-semibold text-sm sm:text-base break-all">
-                  #{String(o.id).slice(0, 8)} · {String(o.email)}
-                </p>
-                <p className="font-bold shrink-0">{formatMMK(Number(o.total_cents))}</p>
-              </div>
-              <select
-                value={String(o.status)}
-                onChange={(e) => updateStatus(String(o.id), e.target.value)}
-                className="w-full sm:w-auto text-xs px-3 py-2.5 rounded-xl border border-black/10 bg-white/60 min-h-[44px]"
-              >
-                {["pending", "processing", "shipped", "delivered", "cancelled"].map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </GlassCard>
-          ))}
-        </div>
+        <AdminOrdersTab orders={orders} onStatusChange={updateStatus} />
       )}
 
-      {tab === "users" && (
-        <div className="space-y-3">
-          {users.map((u) => (
-            <GlassCard
-              key={String(u.id)}
-              className="p-4 flex flex-col sm:flex-row sm:justify-between gap-2"
-            >
-              <div className="min-w-0">
-                <p className="font-semibold truncate">{String(u.full_name)}</p>
-                <p className="text-sm text-soul-muted break-all">{String(u.email)}</p>
-              </div>
-              <span className="text-xs font-bold uppercase shrink-0">{String(u.role)}</span>
-            </GlassCard>
-          ))}
-        </div>
-      )}
+      {tab === "users" && <AdminUsersTab users={users} />}
     </div>
   );
 }

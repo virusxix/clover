@@ -65,9 +65,7 @@ export function MustHaveGrid() {
                   <span className="line-clamp-2">{cat.title}</span>{" "}
                   <span className="opacity-40 shrink-0">›</span>
                 </h3>
-                <p className="text-xs sm:text-sm text-soul-muted mt-1 line-clamp-2">
-                  {cat.desc}
-                </p>
+                <p className="text-xs sm:text-sm text-soul-muted mt-1 line-clamp-2">{cat.desc}</p>
               </div>
             </article>
           </Link>

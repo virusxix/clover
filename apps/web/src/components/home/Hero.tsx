@@ -30,7 +30,10 @@ export function Hero() {
             <Link href="/shop?category=jackets" className="btn-soul--white text-center rounded-full">
               Shop Clothing
             </Link>
-            <Link href="/shop?category=accessories" className="btn-soul--glass text-center rounded-full bg-white/90">
+            <Link
+              href="/shop?category=accessories"
+              className="btn-soul--glass text-center rounded-full bg-white/90"
+            >
               Shop Accessories
             </Link>
           </div>

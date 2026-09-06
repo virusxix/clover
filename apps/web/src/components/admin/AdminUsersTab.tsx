@@ -1,0 +1,201 @@
+"use client";
+
+/**
+ * Admin users list
+ * ----------------
+ * Search, role filter, pagination — compact rows for large user lists.
+ */
+
+import { useMemo, useState } from "react";
+import { GlassCard } from "@/components/ui/GlassCard";
+
+const PAGE_SIZE = 12;
+
+export type AdminUser = {
+  id: string;
+  email: string;
+  full_name: string;
+  role: string;
+  created_at?: string;
+};
+
+type Props = {
+  users: AdminUser[];
+};
+
+function dedupeUsers(users: AdminUser[]) {
+  const map = new Map<string, AdminUser>();
+  for (const u of users) {
+    if (!u?.id || map.has(u.id)) continue;
+    map.set(u.id, u);
+  }
+  return Array.from(map.values());
+}
+
+function formatDate(raw?: string) {
+  if (!raw) return "—";
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+export function AdminUsersTab({ users }: Props) {
+  const [q, setQ] = useState("");
+  const [role, setRole] = useState("");
+  const [page, setPage] = useState(1);
+
+  const filtered = useMemo(() => {
+    const list = dedupeUsers(users);
+    const needle = q.trim().toLowerCase();
+    return list.filter((u) => {
+      if (role && u.role !== role) return false;
+      if (!needle) return true;
+      const hay = `${u.full_name || ""} ${u.email || ""} ${u.role || ""}`.toLowerCase();
+      return hay.includes(needle);
+    });
+  }, [users, q, role]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pageItems = useMemo(() => {
+    const start = (safePage - 1) * PAGE_SIZE;
+    return filtered.slice(start, start + PAGE_SIZE);
+  }, [filtered, safePage]);
+
+  const counts = useMemo(() => {
+    const list = dedupeUsers(users);
+    return {
+      all: list.length,
+      customer: list.filter((u) => u.role === "customer").length,
+      admin: list.filter((u) => u.role === "admin").length,
+    };
+  }, [users]);
+
+  const field =
+    "w-full px-3 py-2.5 rounded-xl border border-black/10 text-sm min-h-[44px] bg-white/70";
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-base sm:text-lg font-black tracking-tight">
+        Users
+        <span className="text-soul-muted font-semibold text-sm ml-2">{filtered.length}</span>
+      </h2>
+
+      <GlassCard className="p-3 sm:p-4 space-y-3">
+        <div className="flex flex-col sm:flex-row gap-2">
+          <input
+            type="search"
+            value={q}
+            onChange={(e) => {
+              setQ(e.target.value);
+              setPage(1);
+            }}
+            placeholder="Search name or email…"
+            className={`${field} flex-1`}
+            autoComplete="off"
+          />
+          <select
+            value={role}
+            onChange={(e) => {
+              setRole(e.target.value);
+              setPage(1);
+            }}
+            className={`${field} sm:w-44`}
+            aria-label="Role filter"
+          >
+            <option value="">All roles ({counts.all})</option>
+            <option value="customer">Customer ({counts.customer})</option>
+            <option value="admin">Admin ({counts.admin})</option>
+          </select>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {(
+            [
+              { id: "", label: "All", count: counts.all },
+              { id: "customer", label: "Customer", count: counts.customer },
+              { id: "admin", label: "Admin", count: counts.admin },
+            ] as const
+          ).map((r) => (
+            <button
+              key={r.id || "all"}
+              type="button"
+              onClick={() => {
+                setRole(r.id);
+                setPage(1);
+              }}
+              className={`text-[10px] font-bold uppercase px-2.5 py-1 rounded-full border ${
+                role === r.id
+                  ? "bg-black text-white border-black"
+                  : "border-black/10 text-soul-muted"
+              }`}
+            >
+              {r.label} ({r.count})
+            </button>
+          ))}
+        </div>
+        <p className="text-[11px] text-soul-muted">
+          Showing {pageItems.length ? (safePage - 1) * PAGE_SIZE + 1 : 0}–
+          {(safePage - 1) * PAGE_SIZE + pageItems.length} · page {safePage}/{totalPages}
+        </p>
+      </GlassCard>
+
+      <div className="space-y-2">
+        {pageItems.map((u) => (
+          <GlassCard
+            key={u.id}
+            className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2"
+          >
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold truncate">{u.full_name || "—"}</p>
+              <p className="text-sm text-soul-muted break-all mt-0.5">{u.email}</p>
+              <p className="text-[11px] text-soul-muted mt-1">Joined {formatDate(u.created_at)}</p>
+            </div>
+            <span
+              className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full shrink-0 w-fit ${
+                u.role === "admin"
+                  ? "bg-black text-white"
+                  : "bg-neutral-100 text-soul-muted"
+              }`}
+            >
+              {u.role}
+            </span>
+          </GlassCard>
+        ))}
+
+        {pageItems.length === 0 && (
+          <GlassCard className="p-8 text-center text-sm text-soul-muted">
+            {q || role ? "No users match these filters." : "No users yet."}
+          </GlassCard>
+        )}
+      </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2">
+          <button
+            type="button"
+            disabled={safePage <= 1}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            className="px-4 py-2 rounded-full text-xs font-bold uppercase border border-black/10 disabled:opacity-40 min-h-[40px]"
+          >
+            Prev
+          </button>
+          <span className="text-xs text-soul-muted tabular-nums px-2">
+            {safePage} / {totalPages}
+          </span>
+          <button
+            type="button"
+            disabled={safePage >= totalPages}
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            className="px-4 py-2 rounded-full text-xs font-bold uppercase border border-black/10 disabled:opacity-40 min-h-[40px]"
+          >
+            Next
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}

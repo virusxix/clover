@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { GlassCard } from "@/components/ui/GlassCard";
 
@@ -55,20 +57,18 @@ export default function AboutPage() {
       <section className="max-w-7xl mx-auto px-3 sm:px-6 pt-6 sm:pt-12 pb-10 sm:pb-12">
         <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
           <div>
-            <p className="text-xs font-bold tracking-[0.2em] uppercase text-soul-muted mb-3">About THE CLOVER</p>
+            <p className="text-xs font-bold tracking-[0.2em] uppercase text-soul-muted mb-3">
+              About THE CLOVER
+            </p>
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight leading-[1.1] mb-6">
               Sportswear built for people who move
             </h1>
-            <p className="text-soul-muted leading-relaxed mb-4">
-              We engineer compression, technical fleece, and training essentials for yoga, gym, and
-              everyday movement — with fabrics and fits tested where it matters: in real sessions.
-            </p>
             <p className="text-soul-muted leading-relaxed mb-8">
-              Your gear should never be the limiting factor. THE CLOVER exists so you can focus on
-              getting stronger, not adjusting a waistband or fighting damp fabric.
+              THE CLOVER makes premium gym sportswear and athleisure for training, recovery, and
+              everyday life — designed to perform when you do.
             </p>
             <Link href="/shop" className="btn-soul--dark rounded-full inline-flex">
-              Shop collection
+              Shop the collection
             </Link>
           </div>
           <GlassCard className="relative aspect-[4/5] overflow-hidden p-0">
@@ -87,14 +87,14 @@ export default function AboutPage() {
 
       <section className="max-w-7xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
         <div className="text-center max-w-2xl mx-auto mb-12">
-          <h2 className="text-2xl sm:text-3xl font-black tracking-tight mb-3">Why our sportswear</h2>
-          <p className="text-soul-muted text-sm sm:text-base">
-            Six benefits woven into every collection — from studio layers to gym essentials.
-          </p>
+          <h2 className="text-2xl sm:text-3xl font-black tracking-tight mb-3">Why athletes choose us</h2>
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
           {BENEFITS.map((b) => (
-            <GlassCard key={b.title} className="p-6 sm:p-8 hover:shadow-card-hover transition-shadow duration-300">
+            <GlassCard
+              key={b.title}
+              className="p-6 sm:p-8 hover:shadow-card-hover transition-shadow duration-300"
+            >
               <span className="text-2xl text-black/30 mb-4 block" aria-hidden>
                 {b.icon}
               </span>
@@ -106,6 +106,7 @@ export default function AboutPage() {
       </section>
 
       <section className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+        <h2 className="text-center text-xl font-black tracking-tight mb-8">What we stand for</h2>
         <div className="grid md:grid-cols-3 gap-5">
           {PILLARS.map((p) => (
             <div key={p.title} className="card-soul p-8 text-center">
@@ -118,16 +119,12 @@ export default function AboutPage() {
 
       <section className="max-w-3xl mx-auto px-4 sm:px-6 py-12 text-center">
         <GlassCard className="p-10 sm:p-12">
-          <h2 className="text-xl sm:text-2xl font-black tracking-tight mb-3">Ready to feel the difference?</h2>
-          <p className="text-soul-muted text-sm mb-6">
-            Free shipping on orders over 150,000 Ks. Explore jackets, bras, leggings, and training layers.
-          </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link href="/new-in" className="btn-soul--dark rounded-full">
-              Shop new in
+              New In
             </Link>
             <Link href="/contact" className="btn-soul--glass rounded-full">
-              Contact us
+              Contact
             </Link>
           </div>
         </GlassCard>

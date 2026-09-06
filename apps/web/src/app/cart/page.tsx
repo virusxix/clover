@@ -56,7 +56,9 @@ export default function CartPage() {
       {items.length === 0 ? (
         <GlassCard className="p-12 text-center">
           <p className="text-soul-muted mb-4">Your bag is empty.</p>
-          <Link href="/shop" className="btn-soul--dark rounded-full inline-flex">Continue Shopping</Link>
+          <Link href="/shop" className="btn-soul--dark rounded-full inline-flex">
+            Continue Shopping
+          </Link>
         </GlassCard>
       ) : (
         <div className="space-y-4">
@@ -68,7 +70,9 @@ export default function CartPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <Link href={`/product/${item.slug}`} className="font-semibold hover:opacity-70 line-clamp-2">{item.name}</Link>
-                  <p className="text-sm text-soul-muted mt-0.5">{item.colorName} · Size {item.size} · Qty {item.quantity}</p>
+                  <p className="text-sm text-soul-muted mt-0.5">
+                    {item.colorName} · Size {item.size} · Qty {item.quantity}
+                  </p>
                   <PriceDisplay
                     price={item.price}
                     compareAtPrice={item.compareAtPrice}

@@ -81,17 +81,19 @@ export function ShopFilterPanel({
         <div className="flex gap-2">
           <input
             type="number"
+            inputMode="numeric"
             placeholder="Min"
             value={minPrice}
             onChange={(e) => setMinPrice(e.target.value)}
-            className="w-full min-w-0 px-3 py-2.5 text-sm rounded-xl border border-black/10 bg-white/50 min-h-[44px]"
+            className="w-full min-h-[44px] px-3 rounded-xl border border-black/10 bg-white/70 text-sm"
           />
           <input
             type="number"
-            placeholder="Max (Ks)"
+            inputMode="numeric"
+            placeholder="Max"
             value={maxPrice}
             onChange={(e) => setMaxPrice(e.target.value)}
-            className="w-full min-w-0 px-3 py-2.5 text-sm rounded-xl border border-black/10 bg-white/50 min-h-[44px]"
+            className="w-full min-h-[44px] px-3 rounded-xl border border-black/10 bg-white/70 text-sm"
           />
         </div>
       </FilterGroup>
@@ -102,7 +104,7 @@ export function ShopFilterPanel({
 function FilterGroup({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <p className="text-xs font-bold tracking-widest uppercase mb-3">{label}</p>
+      <p className="text-xs font-bold tracking-widest uppercase text-soul-muted mb-2.5">{label}</p>
       {children}
     </div>
   );
@@ -123,8 +125,10 @@ function Chip({
     <button
       type="button"
       onClick={onClick}
-      className={`px-3 py-2.5 text-xs rounded-full border transition-all min-h-[40px] touch-manipulation inline-flex items-center ${
-        active ? "bg-black text-white border-black" : "border-black/10 hover:border-black/30"
+      className={`inline-flex items-center px-3 py-2 rounded-full text-xs font-semibold min-h-[40px] border transition-colors touch-manipulation ${
+        active
+          ? "bg-black text-white border-black"
+          : "bg-white/70 border-black/10 hover:border-black/30"
       } ${className}`}
     >
       {children}

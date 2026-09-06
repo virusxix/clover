@@ -15,24 +15,56 @@ export function Footer() {
           <div>
             <p className="font-semibold mb-3 uppercase text-xs tracking-wider">Shop</p>
             <ul className="space-y-2 text-soul-muted">
-              <li><Link href="/shop" className="hover:text-black transition-colors">All Products</Link></li>
-              <li><Link href="/shop?category=leggings" className="hover:text-black transition-colors">Leggings</Link></li>
-              <li><Link href="/shop?category=tops" className="hover:text-black transition-colors">Tops & Bras</Link></li>
-              <li><Link href="/about" className="hover:text-black transition-colors">About Me</Link></li>
+              <li>
+                <Link href="/shop" className="hover:text-black transition-colors">
+                  All Products
+                </Link>
+              </li>
+              <li>
+                <Link href="/shop?category=leggings" className="hover:text-black transition-colors">
+                  Leggings
+                </Link>
+              </li>
+              <li>
+                <Link href="/shop?category=tops" className="hover:text-black transition-colors">
+                  Tops & Bras
+                </Link>
+              </li>
+              <li>
+                <Link href="/about" className="hover:text-black transition-colors">
+                  About Me
+                </Link>
+              </li>
             </ul>
           </div>
           <div>
             <p className="font-semibold mb-3 uppercase text-xs tracking-wider">Support</p>
             <ul className="space-y-2 text-soul-muted">
-              <li><Link href="/contact" className="hover:text-black transition-colors">Contact</Link></li>
-              <li><Link href="/account/orders" className="hover:text-black transition-colors">Track Order</Link></li>
+              <li>
+                <Link href="/contact" className="hover:text-black transition-colors">
+                  Contact
+                </Link>
+              </li>
+              <li>
+                <Link href="/account/orders" className="hover:text-black transition-colors">
+                  Track Order
+                </Link>
+              </li>
             </ul>
           </div>
           <div>
             <p className="font-semibold mb-3 uppercase text-xs tracking-wider">Account</p>
             <ul className="space-y-2 text-soul-muted">
-              <li><Link href="/login" className="hover:text-black transition-colors">Sign In</Link></li>
-              <li><Link href="/account" className="hover:text-black transition-colors">Profile</Link></li>
+              <li>
+                <Link href="/login" className="hover:text-black transition-colors">
+                  Sign In
+                </Link>
+              </li>
+              <li>
+                <Link href="/account" className="hover:text-black transition-colors">
+                  Profile
+                </Link>
+              </li>
             </ul>
           </div>
         </div>
