@@ -443,6 +443,22 @@ router.get("/orders", async (_req, res) => {
 });
 
 /**
+ * GET /api/admin/orders/pending-count
+ * Badge for admin Orders tab — website orders waiting to be packaged.
+ */
+router.get("/orders/pending-count", async (_req, res) => {
+  try {
+    const { rows } = await query(
+      `SELECT COUNT(*)::int AS count FROM orders WHERE status = 'pending'`
+    );
+    res.json({ count: rows[0]?.count ?? 0 });
+  } catch (err) {
+    console.error("[admin/orders/pending-count]", err);
+    res.status(500).json({ error: "Failed to count pending orders" });
+  }
+});
+
+/**
  * GET /api/admin/orders/feed?since=ISO
  * Reception poll — new website orders since timestamp (default last 15 min).
  */

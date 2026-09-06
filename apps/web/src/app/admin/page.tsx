@@ -59,6 +59,7 @@ export default function AdminPage() {
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [saleDiscountPercent, setSaleDiscountPercent] = useState(20);
+  const [pendingOrderCount, setPendingOrderCount] = useState(0);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== "admin")) router.push("/login");
@@ -82,6 +83,12 @@ export default function AdminPage() {
       .catch(() => setOrders([]));
   };
 
+  const loadPendingCount = () => {
+    api<{ count: number }>("/api/admin/orders/pending-count")
+      .then((d) => setPendingOrderCount(Math.max(0, Number(d.count) || 0)))
+      .catch(() => {});
+  };
+
   const loadUsers = () => {
     api<{ users: AdminUser[] }>("/api/admin/users")
       .then((d) => setUsers(d.users || []))
@@ -99,6 +106,14 @@ export default function AdminPage() {
     if (tab === "users") loadUsers();
   }, [tab, user]);
 
+  // Always poll pending count so the Orders tab badge stays accurate on any tab
+  useEffect(() => {
+    if (user?.role !== "admin") return;
+    loadPendingCount();
+    const id = window.setInterval(loadPendingCount, 10000);
+    return () => window.clearInterval(id);
+  }, [user]);
+
   // Refresh orders list while the Orders tab is open
   useEffect(() => {
     if (user?.role !== "admin" || tab !== "orders") return;
@@ -108,9 +123,8 @@ export default function AdminPage() {
 
   const updateStatus = async (orderId: string, status: string) => {
     await api(`/api/admin/orders/${orderId}/status`, { method: "PATCH", json: { status } });
-    setOrders((prev) =>
-      prev.map((o) => (o.id === orderId ? { ...o, status } : o))
-    );
+    setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, status } : o)));
+    loadPendingCount();
   };
 
   if (loading || !user || user.role !== "admin") return null;
@@ -124,18 +138,34 @@ export default function AdminPage() {
       <ReceptionOrderAlerts />
 
       <div className="flex gap-2 mb-6 sm:mb-8 overflow-x-auto pb-1 -mx-3 px-3 sm:mx-0 sm:px-0 scrollbar-none snap-x snap-mandatory">
-        {TABS.map((tabItem) => (
-          <button
-            key={tabItem.id}
-            type="button"
-            onClick={() => setTab(tabItem.id)}
-            className={`shrink-0 snap-start px-4 py-2.5 sm:py-2 rounded-full text-xs font-bold tracking-widest uppercase transition-all min-h-[44px] ${
-              tab === tabItem.id ? "bg-black text-white" : "glass hover:shadow-card"
-            }`}
-          >
-            {tabItem.label}
-          </button>
-        ))}
+        {TABS.map((tabItem) => {
+          const showBadge = tabItem.id === "orders" && pendingOrderCount > 0;
+          const active = tab === tabItem.id;
+          return (
+            <button
+              key={tabItem.id}
+              type="button"
+              onClick={() => setTab(tabItem.id)}
+              className={`shrink-0 snap-start inline-flex items-center gap-1.5 px-4 py-2.5 sm:py-2 rounded-full text-xs font-bold tracking-widest uppercase transition-all min-h-[44px] ${
+                active ? "bg-black text-white" : "glass hover:shadow-card"
+              }`}
+              aria-label={
+                showBadge ? `Orders, ${pendingOrderCount} pending` : tabItem.label
+              }
+            >
+              {tabItem.label}
+              {showBadge && (
+                <span
+                  className={`min-w-[1.25rem] h-5 px-1.5 rounded-full text-[10px] font-black tabular-nums inline-flex items-center justify-center ${
+                    active ? "bg-white text-black" : "bg-red-600 text-white"
+                  }`}
+                >
+                  {pendingOrderCount > 99 ? "99+" : pendingOrderCount}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {tab === "dashboard" && (
