@@ -27,7 +27,7 @@ import {
 } from "@/lib/payments";
 
 const inputClass =
-  "w-full px-4 py-3 rounded-xl border border-black/10 bg-white/70 text-sm focus:outline-none focus:ring-2 focus:ring-black/15 min-h-[48px]";
+  "w-full px-4 py-3 rounded-xl border border-black/10 bg-white/70 text-base focus:outline-none focus:ring-2 focus:ring-black/15 min-h-[48px]";
 
 export function CheckoutForm() {
   const router = useRouter();
@@ -98,7 +98,7 @@ export function CheckoutForm() {
             line2: fd.get("line2") || undefined,
             city: fd.get("city"),
             state: fd.get("state"),
-            zip: fd.get("zip"),
+            zip: "",
             country: "MM",
           },
           payment: { method: paymentMethod },
@@ -221,7 +221,7 @@ export function CheckoutForm() {
               <input id="line2" name="line2" autoComplete="address-line2" className={inputClass} />
             </Field>
 
-            <div className="grid sm:grid-cols-3 gap-4">
+            <div className="grid sm:grid-cols-2 gap-4">
               <Field label="City" id="city" required>
                 <input
                   id="city"
@@ -250,17 +250,6 @@ export function CheckoutForm() {
                     <option key={region} value={region} />
                   ))}
                 </datalist>
-              </Field>
-              <Field label="Postal code" id="zip" required>
-                <input
-                  id="zip"
-                  name="zip"
-                  required
-                  autoComplete="postal-code"
-                  inputMode="numeric"
-                  maxLength={10}
-                  className={inputClass}
-                />
               </Field>
             </div>
             <input type="hidden" name="country" value="MM" />

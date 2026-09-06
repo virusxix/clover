@@ -64,9 +64,9 @@ export default function AccountPage() {
       <GlassCard className="p-6 mb-6">
         <h2 className="font-bold text-sm tracking-widest uppercase mb-4">Profile</h2>
         <form onSubmit={saveProfile} className="space-y-4">
-          <input value={fullName} onChange={(e) => setFullName(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-black/10 bg-white/60 text-sm" />
-          <input value={user.email} disabled className="w-full px-4 py-3 rounded-xl border border-black/10 bg-neutral-100 text-sm opacity-60" />
-          <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone" className="w-full px-4 py-3 rounded-xl border border-black/10 bg-white/60 text-sm" />
+          <input value={fullName} onChange={(e) => setFullName(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-black/10 bg-white/60 text-base min-h-[48px]" />
+          <input value={user.email} disabled className="w-full px-4 py-3 rounded-xl border border-black/10 bg-neutral-100 text-base min-h-[48px] opacity-60" />
+          <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone" className="w-full px-4 py-3 rounded-xl border border-black/10 bg-white/60 text-base min-h-[48px]" />
           <button type="submit" className="btn-soul--dark rounded-full">Save Profile</button>
         </form>
       </GlassCard>
@@ -74,8 +74,8 @@ export default function AccountPage() {
       <GlassCard className="p-6">
         <h2 className="font-bold text-sm tracking-widest uppercase mb-4">Change Password</h2>
         <form onSubmit={changePassword} className="space-y-4">
-          <input name="current" type="password" required placeholder="Current password" className="w-full px-4 py-3 rounded-xl border border-black/10 bg-white/60 text-sm" />
-          <input name="new" type="password" required minLength={8} placeholder="New password" className="w-full px-4 py-3 rounded-xl border border-black/10 bg-white/60 text-sm" />
+          <input name="current" type="password" required placeholder="Current password" className="w-full px-4 py-3 rounded-xl border border-black/10 bg-white/60 text-base min-h-[48px]" />
+          <input name="new" type="password" required minLength={8} placeholder="New password" className="w-full px-4 py-3 rounded-xl border border-black/10 bg-white/60 text-base min-h-[48px]" />
           <button type="submit" className="btn-soul--dark rounded-full">Update Password</button>
         </form>
       </GlassCard>

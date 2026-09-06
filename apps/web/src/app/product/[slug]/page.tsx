@@ -17,6 +17,7 @@ import { PriceDisplay } from "@/components/shop/PriceDisplay";
 import { api } from "@/lib/api";
 import { formatMMK } from "@/lib/currency";
 import { useAuth } from "@/lib/auth-context";
+import { useCart } from "@/lib/cart-context";
 
 type Variant = {
   id: string;
@@ -49,11 +50,13 @@ export default function ProductPage() {
   const { slug } = useParams<{ slug: string }>();
   const router = useRouter();
   const { user } = useAuth();
+  const { refreshCart } = useCart();
   const [data, setData] = useState<ProductDetail | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loadingProduct, setLoadingProduct] = useState(true);
   const [variantIdx, setVariantIdx] = useState(0);
   const [size, setSize] = useState("M");
+  const [quantity, setQuantity] = useState(1);
   const [imgIdx, setImgIdx] = useState(0);
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(false);
@@ -92,6 +95,7 @@ export default function ProductPage() {
 
   const variant = data.variants[variantIdx];
   const images = variant?.images?.length ? variant.images : [{ url: "/assets/hero-image.png", alt: data.product.name }];
+  const maxQty = Math.min(10, Math.max(0, variant?.stock?.[size] ?? 0));
 
   const addToCart = async () => {
     if (!user) {
@@ -100,8 +104,13 @@ export default function ProductPage() {
     }
     setLoading(true);
     try {
-      await api("/api/cart", { method: "POST", json: { variantId: variant.id, size, quantity: 1 } });
-      setMsg("Added to bag!");
+      const qty = Math.min(Math.max(1, quantity), maxQty);
+      await api("/api/cart", {
+        method: "POST",
+        json: { variantId: variant.id, size, quantity: qty },
+      });
+      await refreshCart();
+      setMsg(qty > 1 ? `Added ${qty} to bag!` : "Added to bag!");
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Failed");
     } finally {
@@ -183,6 +192,7 @@ export default function ProductPage() {
                   onClick={() => {
                     setVariantIdx(i);
                     setImgIdx(0);
+                    setQuantity(1);
                   }}
                   className={`w-10 h-10 rounded-full border-2 transition-all touch-manipulation ${
                     variantIdx === i ? "border-black scale-110" : "border-black/10"
@@ -204,7 +214,10 @@ export default function ProductPage() {
                     key={s}
                     type="button"
                     disabled={!inStock}
-                    onClick={() => setSize(s)}
+                    onClick={() => {
+                      setSize(s);
+                      setQuantity(1);
+                    }}
                     className={`w-12 h-12 rounded-full text-sm font-medium border transition-all touch-manipulation ${
                       size === s
                         ? "bg-black text-white border-black"
@@ -220,14 +233,42 @@ export default function ProductPage() {
             </div>
           </div>
 
+          <div className="mb-8">
+            <p className="text-xs font-bold tracking-widest uppercase mb-3">Quantity</p>
+            <div className="inline-flex items-center gap-1 rounded-full border border-black/10 bg-white/70 p-1">
+              <button
+                type="button"
+                aria-label="Decrease quantity"
+                disabled={quantity <= 1}
+                onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                className="w-11 h-11 rounded-full text-lg font-bold touch-manipulation disabled:opacity-30 hover:bg-black/5"
+              >
+                −
+              </button>
+              <span className="min-w-[2.5rem] text-center text-base font-bold tabular-nums">{quantity}</span>
+              <button
+                type="button"
+                aria-label="Increase quantity"
+                disabled={maxQty < 1 || quantity >= maxQty}
+                onClick={() => setQuantity((q) => Math.min(maxQty, q + 1))}
+                className="w-11 h-11 rounded-full text-lg font-bold touch-manipulation disabled:opacity-30 hover:bg-black/5"
+              >
+                +
+              </button>
+            </div>
+            <p className="text-xs text-soul-muted mt-2">
+              {maxQty > 0 ? `${maxQty} available in size ${size}` : `Size ${size} is out of stock`}
+            </p>
+          </div>
+
           <div className="hidden sm:flex flex-col sm:flex-row gap-3 mb-6">
             <button
               type="button"
               onClick={addToCart}
-              disabled={loading}
+              disabled={loading || maxQty < 1}
               className="btn-soul--dark flex-1 rounded-full min-h-[48px]"
             >
-              {loading ? "Adding…" : "Add to Bag"}
+              {loading ? "Adding…" : quantity > 1 ? `Add ${quantity} to Bag` : "Add to Bag"}
             </button>
             <button type="button" onClick={toggleWishlist} className="btn-soul--glass flex-1 rounded-full min-h-[48px]">
               ♥ Wishlist
@@ -271,10 +312,10 @@ export default function ProductPage() {
           <button
             type="button"
             onClick={addToCart}
-            disabled={loading}
+            disabled={loading || maxQty < 1}
             className="btn-soul--dark flex-1 rounded-full min-h-[48px]"
           >
-            {loading ? "Adding…" : "Add to Bag"}
+            {loading ? "Adding…" : quantity > 1 ? `Add ${quantity} to Bag` : "Add to Bag"}
           </button>
         </div>
       </div>

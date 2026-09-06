@@ -31,6 +31,13 @@
     max-width: 100%;
     height: auto;
   }
+  /* ≥16px prevents iOS Safari from zooming (and forcing pinch-out) on focus.
+     !important so Tailwind text-sm utilities cannot shrink form fields below 16px. */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="hidden"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
 }
 
 @layer components {

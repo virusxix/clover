@@ -122,7 +122,7 @@ export default function LoginClient() {
               required
               placeholder="Full name"
               autoComplete="name"
-              className="w-full px-4 py-3 rounded-xl border border-black/10 bg-white/60 text-sm min-h-[48px]"
+              className="w-full px-4 py-3 rounded-xl border border-black/10 bg-white/60 text-base min-h-[48px]"
             />
           )}
           <input
@@ -131,7 +131,7 @@ export default function LoginClient() {
             required
             placeholder="Email"
             autoComplete="email"
-            className="w-full px-4 py-3 rounded-xl border border-black/10 bg-white/60 text-sm min-h-[48px]"
+            className="w-full px-4 py-3 rounded-xl border border-black/10 bg-white/60 text-base min-h-[48px]"
           />
           <input
             name="password"
@@ -140,7 +140,7 @@ export default function LoginClient() {
             minLength={8}
             placeholder="Password"
             autoComplete={mode === "login" ? "current-password" : "new-password"}
-            className="w-full px-4 py-3 rounded-xl border border-black/10 bg-white/60 text-sm min-h-[48px]"
+            className="w-full px-4 py-3 rounded-xl border border-black/10 bg-white/60 text-base min-h-[48px]"
           />
           {error && <p className="text-red-600 text-sm">{error}</p>}
           <button

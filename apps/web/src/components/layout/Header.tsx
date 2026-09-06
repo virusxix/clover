@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import { useCart } from "@/lib/cart-context";
 import { BrandLogo } from "@/components/layout/BrandLogo";
 
 const MAIN_NAV = [
@@ -16,6 +17,7 @@ const MAIN_NAV = [
 
 export function Header() {
   const { user, logout } = useAuth();
+  const { itemCount } = useCart();
   const isAdmin = user?.role === "admin";
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -81,13 +83,15 @@ export function Header() {
             <Link
               href="/cart"
               className="nav-link-pill relative min-w-[2.5rem] justify-center px-2.5 sm:px-3.5"
-              aria-label="Shopping bag"
+              aria-label={itemCount > 0 ? `Shopping bag, ${itemCount} items` : "Shopping bag"}
             >
               <span className="hidden sm:inline">Bag</span>
               <span className="sm:hidden text-xs font-bold">Bag</span>
-              <span className="absolute top-0 right-0.5 sm:right-1 w-4 h-4 bg-black text-white text-[9px] rounded-full flex items-center justify-center font-bold">
-                0
-              </span>
+              {itemCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 sm:right-0 min-w-[1.1rem] h-[1.1rem] px-1 bg-black text-white text-[9px] rounded-full flex items-center justify-center font-bold tabular-nums">
+                  {itemCount > 99 ? "99+" : itemCount}
+                </span>
+              )}
             </Link>
             <button
               type="button"

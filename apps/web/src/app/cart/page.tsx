@@ -9,6 +9,7 @@ import { PriceDisplay } from "@/components/shop/PriceDisplay";
 import { api } from "@/lib/api";
 import { formatMMK } from "@/lib/currency";
 import { useAuth } from "@/lib/auth-context";
+import { useCart } from "@/lib/cart-context";
 
 type CartItem = {
   id: string;
@@ -27,24 +28,49 @@ type CartItem = {
 
 export default function CartPage() {
   const { user, loading: authLoading } = useAuth();
+  const { refreshCart } = useCart();
   const router = useRouter();
   const [items, setItems] = useState<CartItem[]>([]);
   const [subtotal, setSubtotal] = useState(0);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-  const load = () => {
-    api<{ items: CartItem[]; subtotal: number }>("/api/cart")
-      .then((d) => { setItems(d.items); setSubtotal(d.subtotal); })
-      .catch(() => { setItems([]); setSubtotal(0); });
+  const load = async () => {
+    try {
+      const d = await api<{ items: CartItem[]; subtotal: number }>("/api/cart");
+      setItems(d.items);
+      setSubtotal(d.subtotal);
+      await refreshCart();
+    } catch {
+      setItems([]);
+      setSubtotal(0);
+    }
   };
 
   useEffect(() => {
     if (!authLoading && !user) router.push("/login");
-    else if (user) load();
+    else if (user) void load();
   }, [user, authLoading, router]);
 
   const remove = async (id: string) => {
     await api(`/api/cart/${id}`, { method: "DELETE" });
-    load();
+    await load();
+  };
+
+  const setQty = async (id: string, quantity: number) => {
+    if (quantity < 1) {
+      await remove(id);
+      return;
+    }
+    if (quantity > 10) return;
+    setUpdatingId(id);
+    try {
+      await api(`/api/cart/${id}`, { method: "PATCH", json: { quantity } });
+      await load();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Could not update quantity");
+    } finally {
+      setUpdatingId(null);
+    }
   };
 
   if (authLoading || !user) return null;
@@ -69,9 +95,11 @@ export default function CartPage() {
                   <CatalogImage src={item.imageUrl} alt={item.name} fill className="object-cover" sizes="80px" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <Link href={`/product/${item.slug}`} className="font-semibold hover:opacity-70 line-clamp-2">{item.name}</Link>
+                  <Link href={`/product/${item.slug}`} className="font-semibold hover:opacity-70 line-clamp-2">
+                    {item.name}
+                  </Link>
                   <p className="text-sm text-soul-muted mt-0.5">
-                    {item.colorName} · Size {item.size} · Qty {item.quantity}
+                    {item.colorName} · Size {item.size}
                   </p>
                   <PriceDisplay
                     price={item.price}
@@ -80,6 +108,29 @@ export default function CartPage() {
                     size="sm"
                     className="mt-1"
                   />
+                  <div className="mt-3 inline-flex items-center gap-1 rounded-full border border-black/10 bg-white/80 p-0.5">
+                    <button
+                      type="button"
+                      aria-label="Decrease quantity"
+                      disabled={updatingId === item.id}
+                      onClick={() => void setQty(item.id, item.quantity - 1)}
+                      className="w-10 h-10 rounded-full text-lg font-bold touch-manipulation disabled:opacity-40 hover:bg-black/5"
+                    >
+                      −
+                    </button>
+                    <span className="min-w-[2rem] text-center text-base font-bold tabular-nums">
+                      {item.quantity}
+                    </span>
+                    <button
+                      type="button"
+                      aria-label="Increase quantity"
+                      disabled={updatingId === item.id || item.quantity >= 10}
+                      onClick={() => void setQty(item.id, item.quantity + 1)}
+                      className="w-10 h-10 rounded-full text-lg font-bold touch-manipulation disabled:opacity-40 hover:bg-black/5"
+                    >
+                      +
+                    </button>
+                  </div>
                 </div>
               </div>
               <div className="flex items-center justify-between sm:flex-col sm:items-end gap-2 shrink-0 border-t sm:border-t-0 border-black/5 pt-3 sm:pt-0">
@@ -91,7 +142,11 @@ export default function CartPage() {
                     </p>
                   )}
                 </div>
-                <button type="button" onClick={() => remove(item.id)} className="text-xs text-soul-muted hover:text-black min-h-[44px] px-2">
+                <button
+                  type="button"
+                  onClick={() => void remove(item.id)}
+                  className="text-xs text-soul-muted hover:text-black min-h-[44px] px-2"
+                >
                   Remove
                 </button>
               </div>
@@ -103,7 +158,10 @@ export default function CartPage() {
               <p className="text-sm text-soul-muted">Subtotal</p>
               <p className="text-2xl font-black">{formatMMK(subtotal)}</p>
             </div>
-            <Link href="/checkout" className="btn-soul--dark rounded-full w-full sm:w-auto text-center min-h-[48px] flex items-center justify-center">
+            <Link
+              href="/checkout"
+              className="btn-soul--dark rounded-full w-full sm:w-auto text-center min-h-[48px] flex items-center justify-center"
+            >
               Checkout
             </Link>
           </GlassCard>

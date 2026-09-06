@@ -134,7 +134,7 @@ async function insertOrder(client, { userId, shipping, totals, paymentRef, payme
       sh.line2 || null,
       sh.city,
       sh.state,
-      sh.zip,
+      sh.zip || "",
       sh.country,
       paymentRef,
       paymentMethod,

@@ -21,7 +21,7 @@ const checkoutSchema = z.object({
     line2: z.string().optional(),
     city: z.string().min(2),
     state: z.string().min(2),
-    zip: z.string().min(3),
+    zip: z.string().max(20).optional().default(""),
     country: z.string().length(2).default("MM"),
     phone: z.string().min(6).max(32).optional(),
   }),
