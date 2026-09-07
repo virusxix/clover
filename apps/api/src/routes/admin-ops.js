@@ -183,6 +183,7 @@ router.get("/store-sales", async (_req, res) => {
         id: s.id,
         soldAt: s.sold_at,
         total: toDisplayAmount(s.total_cents),
+        discount: toDisplayAmount(s.discount_cents || 0),
         notes: s.notes,
         unitCount: s.unit_count,
       })),
@@ -201,9 +202,12 @@ router.get("/store-sales/:id", async (req, res) => {
       sale: {
         saleId: sale.saleId,
         soldAt: sale.soldAt,
+        subtotal: toDisplayAmount(sale.subtotal),
+        discount: toDisplayAmount(sale.discount || 0),
         total: toDisplayAmount(sale.total),
         notes: sale.notes,
         paymentMethod: sale.paymentMethod,
+        channel: "store",
         items: sale.items.map((i) => ({
           variantId: i.variantId,
           productName: i.productName,
@@ -228,6 +232,8 @@ router.post("/store-sales", async (req, res) => {
       notes: z.string().max(500).optional(),
       soldAt: z.string().datetime().optional(),
       paymentMethod: z.enum(["cash", "kbzpay", "mmqr", "card"]).default("cash"),
+      /** Seller discount in MMK (whole units), applied to the cart subtotal */
+      discount: z.coerce.number().int().min(0).max(50_000_000).optional().default(0),
       items: z
         .array(
           z.object({
@@ -253,15 +259,19 @@ router.post("/store-sales", async (req, res) => {
       items: parsed.data.items,
       notes: parsed.data.notes || "",
       paymentMethod: parsed.data.paymentMethod,
+      discount: parsed.data.discount,
       soldAt: parsed.data.soldAt ? new Date(parsed.data.soldAt) : new Date(),
       createdBy: req.user.id,
     });
     res.status(201).json({
       saleId: result.saleId,
       soldAt: result.soldAt,
+      subtotal: toDisplayAmount(result.subtotal),
+      discount: toDisplayAmount(result.discount),
       total: toDisplayAmount(result.total),
       notes: result.notes,
       paymentMethod: result.paymentMethod,
+      channel: "store",
       items: result.items.map((i) => ({
         variantId: i.variantId,
         productName: i.productName,

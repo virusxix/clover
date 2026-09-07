@@ -66,6 +66,9 @@ CREATE TABLE IF NOT EXISTS store_sales (
   created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+ALTER TABLE store_sales
+  ADD COLUMN IF NOT EXISTS discount_cents INT NOT NULL DEFAULT 0 CHECK (discount_cents >= 0);
+
 CREATE TABLE IF NOT EXISTS store_sale_items (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   sale_id          UUID NOT NULL REFERENCES store_sales(id) ON DELETE CASCADE,

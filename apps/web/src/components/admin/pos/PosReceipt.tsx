@@ -24,6 +24,10 @@ export type ReceiptData = {
   saleId: string;
   soldAt: string;
   total: number;
+  /** Cart subtotal before discount (MMK). */
+  subtotal?: number;
+  /** Seller discount off the order (MMK). */
+  discount?: number;
   notes?: string;
   paymentMethod?: string;
   items: ReceiptItem[];
@@ -83,6 +87,22 @@ function itemsSubtotal(items: ReceiptItem[]) {
   return items.reduce((s, i) => s + (i.lineTotal || 0), 0);
 }
 
+function receiptSubtotal(receipt: ReceiptData) {
+  if (receipt.subtotal != null && Number.isFinite(receipt.subtotal)) {
+    return Math.round(receipt.subtotal);
+  }
+  return itemsSubtotal(receipt.items);
+}
+
+function receiptDiscount(receipt: ReceiptData) {
+  if (receipt.discount != null && Number.isFinite(receipt.discount)) {
+    return Math.max(0, Math.round(receipt.discount));
+  }
+  const sub = receiptSubtotal(receipt);
+  const disc = sub - Math.round(receipt.total);
+  return disc > 0 ? disc : 0;
+}
+
 /** Official brand mark — same asset as site header (/assets/logo-icon.png). */
 function CloverMark({ size = 44, className = "" }: { size?: number; className?: string }) {
   return (
@@ -124,13 +144,14 @@ export function PosReceipt({ receipt, className = "" }: Props) {
   const phone = receipt.customerPhone?.trim() || "";
   const address = receipt.customerAddress?.trim() || "";
   const note = noteClean(receipt.notes);
-  const sub = itemsSubtotal(receipt.items);
+  const sub = receiptSubtotal(receipt);
+  const discount = receiptDiscount(receipt);
   const shipping = receipt.shippingCents ?? 0;
   const tax = receipt.taxCents ?? 0;
   const other =
     shipping + tax > 0
       ? shipping + tax
-      : Math.max(0, Math.round(receipt.total) - sub);
+      : Math.max(0, Math.round(receipt.total) - (sub - discount));
   const units = receipt.items.reduce((s, i) => s + i.quantity, 0);
 
   return (
@@ -217,9 +238,10 @@ export function PosReceipt({ receipt, className = "" }: Props) {
 
         <div className="space-y-1 text-[12px] text-black">
           <Row label="Subtotal" value={amt(sub)} />
+          {discount > 0 && <Row label="Discount" value={`−${amt(discount)}`} />}
           {isWeb && shipping > 0 && <Row label="Shipping" value={amt(shipping)} />}
           {isWeb && tax > 0 && <Row label="Tax" value={amt(tax)} />}
-          {!isWeb && other > 0 && <Row label="Other" value={amt(other)} />}
+          {!isWeb && other > 0 && discount === 0 && <Row label="Other" value={amt(other)} />}
           {isWeb && shipping + tax === 0 && other > 0 && (
             <Row label="Shipping / tax" value={amt(other)} />
           )}
@@ -275,7 +297,9 @@ export function buildTestReceipt(): ReceiptData {
   return {
     saleId: "00000000-test-print-xp80",
     soldAt: new Date().toISOString(),
-    total: 275000,
+    subtotal: 275000,
+    discount: 15000,
+    total: 260000,
     paymentMethod: "cash",
     channel: "store",
     notes: "TEST PRINT · Store POS",
@@ -411,7 +435,8 @@ function buildStorePrintHtml(receipt: ReceiptData, paperMm: PaperWidthMm) {
   const body = isNarrow ? 13 : 14;
   const small = isNarrow ? 12 : 13;
   const brand = isNarrow ? 15 : 17;
-  const sub = itemsSubtotal(receipt.items);
+  const sub = receiptSubtotal(receipt);
+  const discount = receiptDiscount(receipt);
   const units = receipt.items.reduce((s, i) => s + i.quantity, 0);
   const name = escapeHtml(receipt.customerName?.trim() || "");
   const note = noteClean(receipt.notes);
@@ -450,6 +475,11 @@ function buildStorePrintHtml(receipt: ReceiptData, paperMm: PaperWidthMm) {
   <div class="dash"></div>
   <div class="block">
     <div class="row"><span class="k">Subtotal</span><span class="v">${amt(sub)}</span></div>
+    ${
+      discount > 0
+        ? `<div class="row"><span class="k">Discount</span><span class="v">-${amt(discount)}</span></div>`
+        : ""
+    }
     <div class="total-row">
       <span class="lbl">Total</span>
       <span class="amt">${formatMMK(receipt.total)}</span>
@@ -683,8 +713,8 @@ export async function downloadReceiptPng(
   const when = new Date(receipt.soldAt).toLocaleString();
   const pay = PAY_LABELS[receipt.paymentMethod || "cash"] || "Cash";
   const note = noteClean(receipt.notes);
-  const sub = itemsSubtotal(receipt.items);
-  const other = Math.max(0, Math.round(receipt.total) - sub);
+  const sub = receiptSubtotal(receipt);
+  const discount = receiptDiscount(receipt);
   const units = receipt.items.reduce((s, i) => s + i.quantity, 0);
   const shortId = receipt.saleId.slice(0, 8).toUpperCase();
 
@@ -748,7 +778,7 @@ export async function downloadReceiptPng(
   ops.push({ k: "dash" });
   gap(4);
   pair("Subtotal", amt(sub));
-  if (other > 0) pair("Shipping / tax", amt(other));
+  if (discount > 0) pair("Discount", `-${amt(discount)}`);
   gap(4);
   text(`TOTAL  ${formatMMK(receipt.total)}`, fsTotal, "700", "center");
 

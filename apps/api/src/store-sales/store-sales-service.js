@@ -2,6 +2,7 @@
  * Store sales (physical POS)
  * --------------------------
  * One job: record a walk-in sale and deduct STORE location stock.
+ * Supports a seller-entered order discount (MMK) off the cart subtotal.
  */
 
 import { getPool } from "../pg-pool.js";
@@ -9,7 +10,11 @@ import { LOCATIONS } from "../inventory/locations.js";
 import { adjustStock } from "../inventory/stock-service.js";
 
 /**
- * @param {{ items: Array<{ variantId, size, quantity, unitPrice }>, notes?, soldAt?, createdBy?, paymentMethod? }}
+ * @param {{
+ *   items: Array<{ variantId, size, quantity, unitPrice }>,
+ *   notes?, soldAt?, createdBy?, paymentMethod?,
+ *   discount?: number  // MMK whole units off the subtotal
+ * }}
  */
 export async function createStoreSale({
   items,
@@ -17,6 +22,7 @@ export async function createStoreSale({
   soldAt = new Date(),
   createdBy = null,
   paymentMethod = "cash",
+  discount = 0,
 }) {
   if (!items?.length) {
     const err = new Error("Sale needs at least one item");
@@ -24,11 +30,13 @@ export async function createStoreSale({
     throw err;
   }
 
+  const discountAmt = Math.max(0, Math.round(Number(discount) || 0));
+
   const client = await getPool().then((p) => p.connect());
   try {
     await client.query("BEGIN");
 
-    let total = 0;
+    let subtotal = 0;
     const resolved = [];
 
     for (const line of items) {
@@ -46,7 +54,7 @@ export async function createStoreSale({
       }
       const v = rows[0];
       const unitPrice = line.unitPrice ?? v.price_cents;
-      total += unitPrice * line.quantity;
+      subtotal += unitPrice * line.quantity;
       resolved.push({
         variantId: v.id,
         productName: v.name,
@@ -59,14 +67,22 @@ export async function createStoreSale({
       });
     }
 
+    if (discountAmt > subtotal) {
+      const err = new Error("Discount cannot be greater than the subtotal");
+      err.status = 400;
+      throw err;
+    }
+
+    const total = subtotal - discountAmt;
+
     const saleNotes = [notes, paymentMethod ? `pay:${paymentMethod}` : ""]
       .filter(Boolean)
       .join(" · ");
 
     const { rows: saleRows } = await client.query(
-      `INSERT INTO store_sales (sold_at, total_cents, notes, created_by)
-       VALUES ($1, $2, $3, $4) RETURNING id, sold_at, total_cents, notes`,
-      [soldAt, total, saleNotes, createdBy]
+      `INSERT INTO store_sales (sold_at, total_cents, discount_cents, notes, created_by)
+       VALUES ($1, $2, $3, $4, $5) RETURNING id, sold_at, total_cents, discount_cents, notes`,
+      [soldAt, total, discountAmt, saleNotes, createdBy]
     );
     const sale = saleRows[0];
 
@@ -106,6 +122,8 @@ export async function createStoreSale({
     return {
       saleId: sale.id,
       soldAt: sale.sold_at,
+      subtotal,
+      discount: sale.discount_cents,
       total: sale.total_cents,
       notes: sale.notes,
       paymentMethod,
@@ -126,7 +144,7 @@ export async function createStoreSale({
 
 export async function listStoreSales(db, { limit = 50 } = {}) {
   const { rows } = await db.query(
-    `SELECT s.id, s.sold_at, s.total_cents, s.notes, s.created_at,
+    `SELECT s.id, s.sold_at, s.total_cents, s.discount_cents, s.notes, s.created_at,
             COALESCE(SUM(i.quantity), 0)::int AS unit_count
      FROM store_sales s
      LEFT JOIN store_sale_items i ON i.sale_id = s.id
@@ -143,7 +161,7 @@ export async function listStoreSales(db, { limit = 50 } = {}) {
  */
 export async function getStoreSaleById(db, saleId) {
   const { rows } = await db.query(
-    `SELECT id, sold_at, total_cents, notes, created_at
+    `SELECT id, sold_at, total_cents, discount_cents, notes, created_at
      FROM store_sales WHERE id = $1`,
     [saleId]
   );
@@ -162,9 +180,13 @@ export async function getStoreSaleById(db, saleId) {
   );
 
   const sale = rows[0];
+  const subtotal = items.reduce((s, i) => s + i.unit_price_cents * i.quantity, 0);
+  const discount = sale.discount_cents ?? 0;
   return {
     saleId: sale.id,
     soldAt: sale.sold_at,
+    subtotal,
+    discount,
     total: sale.total_cents,
     notes: sale.notes,
     paymentMethod: parsePayMethod(sale.notes),

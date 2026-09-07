@@ -139,6 +139,8 @@ export function PosTerminal() {
   const [cart, setCart] = useState<CartLine[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<PosPaymentMethod>("cash");
   const [notes, setNotes] = useState("");
+  /** Seller discount in MMK (whole units) applied to cart subtotal */
+  const [discountInput, setDiscountInput] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
@@ -161,8 +163,11 @@ export function PosTerminal() {
     );
   }, [styles, q]);
 
-  const cartTotal = cart.reduce((s, l) => s + l.unitPrice * l.quantity, 0);
+  const cartSubtotal = cart.reduce((s, l) => s + l.unitPrice * l.quantity, 0);
   const cartUnits = cart.reduce((s, l) => s + l.quantity, 0);
+  const discountParsed = Math.max(0, Math.round(Number(discountInput.replace(/,/g, "")) || 0));
+  const discountAmt = Math.min(discountParsed, cartSubtotal);
+  const cartTotal = Math.max(0, cartSubtotal - discountAmt);
 
   const load = () => {
     Promise.all([
@@ -243,12 +248,17 @@ export function PosTerminal() {
   const clearCart = () => {
     setCart([]);
     setNotes("");
+    setDiscountInput("");
     setPaymentMethod("cash");
   };
 
   const checkout = async () => {
     if (!cart.length) {
       setError("Cart is empty");
+      return;
+    }
+    if (discountParsed > cartSubtotal) {
+      setError("Discount cannot be greater than the subtotal");
       return;
     }
     setSaving(true);
@@ -259,6 +269,7 @@ export function PosTerminal() {
         json: {
           paymentMethod,
           notes: notes.trim() || undefined,
+          discount: discountAmt,
           items: cart.map((l) => ({
             variantId: l.variantId,
             size: l.size,
@@ -464,16 +475,52 @@ export function PosTerminal() {
               placeholder="Note (optional)"
               className="w-full px-3 py-2.5 rounded-xl border border-black/10 bg-white/70 text-sm min-h-[44px]"
             />
-            <div className="flex justify-between items-baseline">
-              <span className="text-xs text-soul-muted uppercase tracking-wider">
-                {cartUnits} item{cartUnits === 1 ? "" : "s"}
-              </span>
-              <span className="text-2xl font-black tracking-tight">{formatMMK(cartTotal)}</span>
+            <div>
+              <label
+                htmlFor="pos-discount"
+                className="block text-[10px] font-bold tracking-widest uppercase text-soul-muted mb-1.5"
+              >
+                Discount (Ks)
+              </label>
+              <input
+                id="pos-discount"
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={cartSubtotal || undefined}
+                step={1000}
+                value={discountInput}
+                onChange={(e) => setDiscountInput(e.target.value)}
+                placeholder="0"
+                disabled={cart.length === 0}
+                className="w-full px-3 py-2.5 rounded-xl border border-black/10 bg-white/70 text-base min-h-[44px] tabular-nums disabled:opacity-50"
+              />
+              {discountParsed > cartSubtotal && cartSubtotal > 0 && (
+                <p className="text-[11px] text-red-600 mt-1">Max discount is {formatMMK(cartSubtotal)}</p>
+              )}
+            </div>
+            <div className="space-y-1">
+              <div className="flex justify-between items-baseline text-sm">
+                <span className="text-soul-muted">
+                  Subtotal · {cartUnits} item{cartUnits === 1 ? "" : "s"}
+                </span>
+                <span className="tabular-nums font-medium">{formatMMK(cartSubtotal)}</span>
+              </div>
+              {discountAmt > 0 && (
+                <div className="flex justify-between items-baseline text-sm">
+                  <span className="text-soul-muted">Discount</span>
+                  <span className="tabular-nums font-medium text-soul-sale">−{formatMMK(discountAmt)}</span>
+                </div>
+              )}
+              <div className="flex justify-between items-baseline pt-1 border-t border-black/10">
+                <span className="text-xs text-soul-muted uppercase tracking-wider">Total</span>
+                <span className="text-2xl font-black tracking-tight tabular-nums">{formatMMK(cartTotal)}</span>
+              </div>
             </div>
             <button
               type="button"
               onClick={checkout}
-              disabled={saving || cart.length === 0}
+              disabled={saving || cart.length === 0 || discountParsed > cartSubtotal}
               className="btn-soul--dark rounded-full w-full min-h-[52px] text-xs disabled:opacity-50"
             >
               {saving ? "Processing…" : "Charge & print ready"}
