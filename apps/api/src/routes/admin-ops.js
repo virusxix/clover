@@ -47,7 +47,7 @@ router.use((req, res, next) => {
   return requireStoreStaff(req, res, next);
 });
 
-const SIZES = ["XS", "S", "M", "L", "XL"];
+const SIZES = ["XS", "S", "M", "L", "XL", "3XL"];
 
 function hideCosts(role) {
   return role === "reception";

@@ -44,7 +44,7 @@ type ProductDetail = {
   variants: Variant[];
 };
 
-const SIZES = ["XS", "S", "M", "L", "XL"];
+const SIZES = ["XS", "S", "M", "L", "XL", "3XL"];
 
 export default function ProductPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -218,7 +218,7 @@ export default function ProductPage() {
                       setSize(s);
                       setQuantity(1);
                     }}
-                    className={`w-12 h-12 rounded-full text-sm font-medium border transition-all touch-manipulation ${
+                    className={`min-w-12 h-12 px-2.5 rounded-full text-sm font-medium border transition-all touch-manipulation ${
                       size === s
                         ? "bg-black text-white border-black"
                         : inStock

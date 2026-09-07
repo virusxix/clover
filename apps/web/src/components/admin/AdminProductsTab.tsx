@@ -7,7 +7,7 @@ import { ProductImagePicker } from "@/components/admin/ProductImagePicker";
 import { api } from "@/lib/api";
 import { describeProductCode } from "@/lib/product-code";
 
-const SIZES = ["XS", "S", "M", "L", "XL"] as const;
+const SIZES = ["XS", "S", "M", "L", "XL", "3XL"] as const;
 const PAGE_SIZE = 12;
 
 const CATEGORIES = [

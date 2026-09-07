@@ -20,7 +20,7 @@ const CATEGORIES = [
   { id: "tops", label: "Tops & Bras" },
 ];
 
-const SIZES = ["XS", "S", "M", "L", "XL"];
+const SIZES = ["XS", "S", "M", "L", "XL", "3XL"];
 
 export type ShopFilterValues = {
   category: string;

@@ -123,7 +123,7 @@ router.get("/dashboard", async (_req, res) => {
   });
 });
 
-const SIZES = ["XS", "S", "M", "L", "XL"];
+const SIZES = ["XS", "S", "M", "L", "XL", "3XL"];
 
 function buildTags({ tagNew, tagSale, tags = [] }) {
   const set = new Set(tags.map((t) => t.trim().toLowerCase()).filter(Boolean));
