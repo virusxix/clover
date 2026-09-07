@@ -87,7 +87,8 @@ export function middleware(req: NextRequest) {
     }
   }
 
-  // ── Admin role: /admin/* only (floor is reception-only) ─────
+  // ── Admin role: owner console + public shop ─────────────────
+  // Do NOT lock admins out of the storefront — only gate staff routes.
   if (role === "admin") {
     if (isAdminLogin(pathname) && authed) {
       return applySecurityHeaders(redirectTo(req, "/admin"));
@@ -95,10 +96,8 @@ export function middleware(req: NextRequest) {
     if (pathname === "/login") {
       return applySecurityHeaders(redirectTo(req, "/admin/login"));
     }
+    // Floor is reception-only
     if (isReceptionApp(pathname)) {
-      return applySecurityHeaders(redirectTo(req, "/admin"));
-    }
-    if (!isAdminApp(pathname)) {
       return applySecurityHeaders(redirectTo(req, "/admin"));
     }
     return res;
