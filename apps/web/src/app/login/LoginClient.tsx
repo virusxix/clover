@@ -102,17 +102,11 @@ export default function LoginClient() {
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Authentication failed";
-      if (/USE_ADMIN_LOGIN|Owners must/i.test(msg)) {
-        setError("Owners: use the Admin login at /admin/login");
-      } else if (/USE_RECEPTION_LOGIN|Reception staff must/i.test(msg)) {
-        setError("Reception staff: use /reception/login");
-      } else {
-        setError(
-          /reach|503|502|504|network|waking|timeout/i.test(msg)
-            ? `${msg} — on slow networks wait 30–60s and try Sign In again.`
-            : msg
-        );
-      }
+      setError(
+        /reach|503|502|504|network|waking|timeout/i.test(msg)
+          ? `${msg} — on slow networks wait 30–60s and try Sign In again.`
+          : msg
+      );
     } finally {
       setLoading(false);
     }
@@ -125,7 +119,7 @@ export default function LoginClient() {
           <BrandLogo href="/" size="sm" wordmarkClassName="" />
         </div>
         <h1 className="text-2xl font-black tracking-tight mb-2 text-center">
-          {mode === "login" ? "Customer sign in" : "Create account"}
+          {mode === "login" ? "Sign in" : "Create account"}
         </h1>
         <p className="text-sm text-soul-muted mb-6 text-center">
           {mode === "login"
@@ -184,15 +178,9 @@ export default function LoginClient() {
           {mode === "login" ? "Need an account? Register" : "Already have an account? Sign in"}
         </button>
 
-        <p className="mt-6 text-center text-xs text-soul-muted space-y-2">
-          <Link href="/" className="hover:text-black block">
+        <p className="mt-6 text-center text-xs text-soul-muted">
+          <Link href="/" className="hover:text-black">
             ← Back to shop
-          </Link>
-          <Link href="/admin/login" className="hover:text-black block">
-            Owner admin login
-          </Link>
-          <Link href="/reception/login" className="hover:text-black block">
-            Reception / floor login
           </Link>
         </p>
       </GlassCard>

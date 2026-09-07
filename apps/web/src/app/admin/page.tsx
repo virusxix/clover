@@ -3,7 +3,8 @@
 /**
  * Admin shell
  * -----------
- * Tab router for dashboard, ops (analytics/inventory/store/iconic), catalog, orders, users.
+ * Owner console: overview, analytics, catalog, users.
+ * Floor ops (POS, orders, inventory, ICONIC, customers) live under /reception.
  */
 
 import { useEffect, useState } from "react";
@@ -11,29 +12,14 @@ import { useRouter } from "next/navigation";
 import { AdminProductsTab, AdminProduct } from "@/components/admin/AdminProductsTab";
 import { AdminSaleSettings } from "@/components/admin/AdminSaleSettings";
 import { AdminAnalyticsTab } from "@/components/admin/AdminAnalyticsTab";
-import { AdminInventoryTab } from "@/components/admin/AdminInventoryTab";
-import { AdminStoreTab } from "@/components/admin/AdminStoreTab";
-import { AdminIconicTab } from "@/components/admin/AdminIconicTab";
-import { AdminOrdersTab, type AdminOrder } from "@/components/admin/AdminOrdersTab";
 import { AdminUsersTab, type AdminUser } from "@/components/admin/AdminUsersTab";
-import { AdminCustomersTab } from "@/components/admin/AdminCustomersTab";
-import { ReceptionOrderAlerts } from "@/components/admin/ReceptionOrderAlerts";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { api } from "@/lib/api";
 import { formatMMK } from "@/lib/currency";
 import { useAuth } from "@/lib/auth-context";
 import { isAdmin, isReception } from "@/lib/roles";
 
-type Tab =
-  | "dashboard"
-  | "analytics"
-  | "inventory"
-  | "store"
-  | "iconic"
-  | "products"
-  | "orders"
-  | "customers"
-  | "users";
+type Tab = "dashboard" | "analytics" | "products" | "users";
 
 type Dashboard = {
   totalSales: number;
@@ -45,12 +31,7 @@ type Dashboard = {
 const TABS: { id: Tab; label: string }[] = [
   { id: "dashboard", label: "Overview" },
   { id: "analytics", label: "Analytics" },
-  { id: "inventory", label: "Inventory" },
-  { id: "store", label: "POS" },
-  { id: "iconic", label: "ICONIC" },
   { id: "products", label: "Products" },
-  { id: "orders", label: "Orders" },
-  { id: "customers", label: "Customers" },
   { id: "users", label: "Users" },
 ];
 
@@ -60,10 +41,8 @@ export default function AdminPage() {
   const [tab, setTab] = useState<Tab>("dashboard");
   const [dash, setDash] = useState<Dashboard | null>(null);
   const [products, setProducts] = useState<AdminProduct[]>([]);
-  const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [saleDiscountPercent, setSaleDiscountPercent] = useState(20);
-  const [pendingOrderCount, setPendingOrderCount] = useState(0);
 
   useEffect(() => {
     if (loading) return;
@@ -92,18 +71,6 @@ export default function AdminPage() {
       .catch(() => {});
   };
 
-  const loadOrders = () => {
-    api<{ orders: AdminOrder[] }>("/api/admin/orders")
-      .then((d) => setOrders(d.orders || []))
-      .catch(() => setOrders([]));
-  };
-
-  const loadPendingCount = () => {
-    api<{ count: number }>("/api/admin/orders/pending-count")
-      .then((d) => setPendingOrderCount(Math.max(0, Number(d.count) || 0)))
-      .catch(() => {});
-  };
-
   const loadUsers = () => {
     api<{ users: AdminUser[] }>("/api/admin/users")
       .then((d) => setUsers(d.users || []))
@@ -117,57 +84,8 @@ export default function AdminPage() {
       api<Dashboard>("/api/admin/dashboard").then(setDash).catch(() => setDash(null));
     }
     if (tab === "products") loadProducts();
-    if (tab === "orders") loadOrders();
     if (tab === "users") loadUsers();
   }, [tab, user]);
-
-  // Always poll pending count so the Orders tab badge stays accurate on any tab
-  useEffect(() => {
-    if (!isAdmin(user?.role)) return;
-    loadPendingCount();
-    const id = window.setInterval(loadPendingCount, 10000);
-    return () => window.clearInterval(id);
-  }, [user]);
-
-  // Refresh orders list while the Orders tab is open
-  useEffect(() => {
-    if (!isAdmin(user?.role) || tab !== "orders") return;
-    const id = window.setInterval(loadOrders, 10000);
-    return () => window.clearInterval(id);
-  }, [tab, user]);
-
-  const updateStatus = async (orderId: string, status: string) => {
-    await api(`/api/admin/orders/${orderId}/status`, { method: "PATCH", json: { status } });
-    setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, status } : o)));
-    loadPendingCount();
-  };
-
-  const updatePayment = async (orderId: string, received: boolean) => {
-    const res = await api<{
-      order: {
-        id: string;
-        status: string;
-        paymentReceived: boolean;
-        paymentReceivedAt: string | null;
-      };
-    }>(`/api/admin/orders/${orderId}/payment`, {
-      method: "PATCH",
-      json: { received },
-    });
-    setOrders((prev) =>
-      prev.map((o) =>
-        o.id === orderId
-          ? {
-              ...o,
-              status: res.order.status || o.status,
-              payment_received: res.order.paymentReceived,
-              payment_received_at: res.order.paymentReceivedAt,
-            }
-          : o
-      )
-    );
-    loadPendingCount();
-  };
 
   const updateUserRole = async (userId: string, role: string, confirmPassword?: string) => {
     const res = await api<{ user: AdminUser }>(`/api/admin/users/${userId}/role`, {
@@ -190,22 +108,19 @@ export default function AdminPage() {
           </p>
           <h1 className="text-xl sm:text-3xl font-black tracking-tight">THE CLOVER · Admin</h1>
           <p className="text-sm text-soul-muted mt-1">
-            Profit, users, catalog, analytics — floor staff use Reception instead
+            Profit, catalog, users, analytics — floor ops are on Reception
           </p>
         </div>
         <a
           href="/reception"
           className="text-xs font-bold tracking-widest uppercase hover:opacity-60 min-h-[44px] inline-flex items-center"
         >
-          Open floor / POS →
+          Open Reception →
         </a>
       </div>
 
-      <ReceptionOrderAlerts />
-
       <div className="flex gap-2 mb-6 sm:mb-8 overflow-x-auto pb-1 -mx-3 px-3 sm:mx-0 sm:px-0 scrollbar-none snap-x snap-mandatory">
         {TABS.map((tabItem) => {
-          const showBadge = tabItem.id === "orders" && pendingOrderCount > 0;
           const active = tab === tabItem.id;
           return (
             <button
@@ -215,20 +130,8 @@ export default function AdminPage() {
               className={`shrink-0 snap-start inline-flex items-center gap-1.5 px-4 py-2.5 sm:py-2 rounded-full text-xs font-bold tracking-widest uppercase transition-all min-h-[44px] ${
                 active ? "bg-black text-white" : "glass hover:shadow-card"
               }`}
-              aria-label={
-                showBadge ? `Orders, ${pendingOrderCount} pending` : tabItem.label
-              }
             >
               {tabItem.label}
-              {showBadge && (
-                <span
-                  className={`min-w-[1.25rem] h-5 px-1.5 rounded-full text-[10px] font-black tabular-nums inline-flex items-center justify-center ${
-                    active ? "bg-white text-black" : "bg-red-600 text-white"
-                  }`}
-                >
-                  {pendingOrderCount > 99 ? "99+" : pendingOrderCount}
-                </span>
-              )}
             </button>
           );
         })}
@@ -271,9 +174,6 @@ export default function AdminPage() {
       )}
 
       {tab === "analytics" && <AdminAnalyticsTab />}
-      {tab === "inventory" && <AdminInventoryTab />}
-      {tab === "store" && <AdminStoreTab />}
-      {tab === "iconic" && <AdminIconicTab />}
 
       {tab === "products" && (
         <AdminProductsTab
@@ -282,17 +182,6 @@ export default function AdminPage() {
           saleDiscountPercent={saleDiscountPercent}
         />
       )}
-
-      {tab === "orders" && (
-        <AdminOrdersTab
-          orders={orders}
-          onStatusChange={updateStatus}
-          onPaymentChange={updatePayment}
-          onOrdersRefresh={loadOrders}
-        />
-      )}
-
-      {tab === "customers" && <AdminCustomersTab />}
 
       {tab === "users" && <AdminUsersTab users={users} onRoleChange={updateUserRole} />}
     </div>

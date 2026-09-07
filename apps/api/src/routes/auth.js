@@ -85,31 +85,20 @@ router.post("/login", async (req, res) => {
 
     if (portal === "customer") {
       if (user.role !== "customer") {
-        if (user.role === "admin") {
-          return res.status(403).json({
-            error: "Owners must sign in at the Admin login.",
-            code: "USE_ADMIN_LOGIN",
-          });
-        }
-        if (user.role === "reception") {
-          return res.status(403).json({
-            error: "Reception staff must sign in at the Reception login.",
-            code: "USE_RECEPTION_LOGIN",
-          });
-        }
-        return res.status(403).json({ error: "This login is for customers only.", code: "WRONG_PORTAL" });
+        // Same response as a bad password — do not reveal staff portals on the shop login.
+        return res.status(401).json({ error: "Invalid email or password" });
       }
     } else if (portal === "admin") {
       if (user.role !== "admin") {
         return res.status(403).json({
-          error: "This login is for owners only. Use the customer or reception login.",
+          error: "Invalid email or password",
           code: "WRONG_PORTAL",
         });
       }
     } else if (portal === "reception") {
       if (user.role !== "reception") {
         return res.status(403).json({
-          error: "This login is for reception staff only.",
+          error: "Invalid email or password",
           code: "WRONG_PORTAL",
         });
       }

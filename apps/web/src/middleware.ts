@@ -1,6 +1,6 @@
 /**
  * Edge middleware — three portals: customer, admin, reception.
- * API still enforces live DB role on every privileged route.
+ * Reception must never reach /admin. API still enforces live DB role.
  */
 
 import { NextResponse } from "next/server";
@@ -56,7 +56,7 @@ export function middleware(req: NextRequest) {
   const authed = hasSessionCookie(req);
   const role = roleHint(req);
 
-  // ── Reception: only /reception/* ────────────────────────────
+  // ── Reception: locked to /reception/* only (never /admin) ───
   if (role === "reception") {
     if (isReceptionLogin(pathname) && authed) {
       return applySecurityHeaders(redirectTo(req, "/reception"));
@@ -70,7 +70,24 @@ export function middleware(req: NextRequest) {
     return res;
   }
 
-  // ── Admin: /admin/* + /reception/* (floor tools) ────────────
+  // ── Admin console: owners only ──────────────────────────────
+  // Block before the broader admin+reception allow-list below.
+  if (isAdminApp(pathname) && !isAdminLogin(pathname)) {
+    if (!authed) {
+      return applySecurityHeaders(redirectTo(req, "/admin/login"));
+    }
+    if (role !== "admin") {
+      if (role === "customer") {
+        return applySecurityHeaders(redirectTo(req, "/account"));
+      }
+      // Missing/stale role cookie: force login page so /me can resync cloverRole.
+      // Reception with a stale cookie is caught above once cloverRole is correct;
+      // client AdminChrome also bounces non-admins after /me.
+      return applySecurityHeaders(redirectTo(req, "/admin/login"));
+    }
+  }
+
+  // ── Admin role: /admin/* + /reception/* (floor tools) ───────
   if (role === "admin") {
     if (isAdminLogin(pathname) && authed) {
       return applySecurityHeaders(redirectTo(req, "/admin"));
@@ -85,10 +102,7 @@ export function middleware(req: NextRequest) {
     if (!allowed) {
       return applySecurityHeaders(redirectTo(req, "/admin"));
     }
-    if (isAdminApp(pathname) && !isAdminLogin(pathname) && !authed) {
-      return applySecurityHeaders(redirectTo(req, "/admin/login"));
-    }
-    if (isReceptionApp(pathname) && !authed) {
+    if (isReceptionApp(pathname) && !isReceptionLogin(pathname) && !authed) {
       return applySecurityHeaders(redirectTo(req, "/admin/login"));
     }
     return res;
@@ -96,15 +110,6 @@ export function middleware(req: NextRequest) {
 
   // ── Public staff login pages ────────────────────────────────
   if (isAdminLogin(pathname) || isReceptionLogin(pathname)) {
-    return res;
-  }
-
-  // ── Unauthenticated staff dashboards → correct login ────────
-  if (isAdminApp(pathname)) {
-    if (!authed) return applySecurityHeaders(redirectTo(req, "/admin/login"));
-    if (role && role !== "admin") {
-      return applySecurityHeaders(redirectTo(req, role === "reception" ? "/reception" : "/account"));
-    }
     return res;
   }
 

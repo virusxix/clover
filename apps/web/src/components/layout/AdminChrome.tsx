@@ -2,17 +2,49 @@
 
 /**
  * Owner admin chrome — no shop navigation.
+ * Reception and customers are bounced; only admin may use /admin.
  */
 
+import { useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { BrandLogo } from "@/components/layout/BrandLogo";
 import { useAuth } from "@/lib/auth-context";
+import { isAdmin, isReception } from "@/lib/roles";
 
 export function AdminChrome({ children }: { children: React.ReactNode }) {
   const { user, logout, loading } = useAuth();
   const pathname = usePathname() || "";
+  const router = useRouter();
   const isLogin = pathname === "/admin/login";
+
+  useEffect(() => {
+    if (loading || isLogin) return;
+    if (!user) {
+      router.replace("/admin/login");
+      return;
+    }
+    if (!isAdmin(user.role)) {
+      router.replace(isReception(user.role) ? "/reception" : "/login");
+    }
+  }, [user, loading, isLogin, router]);
+
+  useEffect(() => {
+    if (loading || !isLogin || !user) return;
+    if (isAdmin(user.role)) {
+      router.replace("/admin");
+      return;
+    }
+    if (isReception(user.role)) {
+      router.replace("/reception");
+      return;
+    }
+    router.replace("/login");
+  }, [user, loading, isLogin, router]);
+
+  if (!isLogin && (loading || !user || !isAdmin(user.role))) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-[var(--soul-bg,#f4f4f5)]">
@@ -27,7 +59,7 @@ export function AdminChrome({ children }: { children: React.ReactNode }) {
               <p className="text-sm font-semibold truncate">THE CLOVER · Admin</p>
             </div>
           </div>
-          {!loading && user && !isLogin && (
+          {!loading && user && !isLogin && isAdmin(user.role) && (
             <div className="flex items-center gap-2 shrink-0">
               <span className="text-xs text-soul-muted hidden md:inline truncate max-w-[10rem]">
                 {user.fullName}
@@ -36,7 +68,7 @@ export function AdminChrome({ children }: { children: React.ReactNode }) {
                 href="/reception"
                 className="text-[10px] font-bold tracking-widest uppercase px-3 py-2 rounded-full border border-black/10 min-h-[40px] inline-flex items-center"
               >
-                Floor / POS
+                Reception
               </Link>
               <button
                 type="button"

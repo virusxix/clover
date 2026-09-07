@@ -134,12 +134,9 @@ export default function ReceptionLoginClient() {
           </button>
         </form>
 
-        <p className="mt-6 text-center text-xs text-soul-muted space-y-2">
-          <Link href="/login" className="font-semibold text-black hover:opacity-70 block">
+        <p className="mt-6 text-center text-xs text-soul-muted">
+          <Link href="/login" className="font-semibold text-black hover:opacity-70">
             Customer login
-          </Link>
-          <Link href="/admin/login" className="hover:text-black block">
-            Owner admin login
           </Link>
         </p>
       </GlassCard>

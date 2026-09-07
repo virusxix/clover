@@ -10,7 +10,7 @@ import { useRouter } from "next/navigation";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { BrandLogo } from "@/components/layout/BrandLogo";
 import { useAuth } from "@/lib/auth-context";
-import { isAdmin } from "@/lib/roles";
+import { isAdmin, isReception } from "@/lib/roles";
 
 async function wakeApi() {
   for (let i = 0; i < 4; i++) {
@@ -46,6 +46,10 @@ export default function AdminLoginPage() {
     if (authLoading) return;
     if (user && isAdmin(user.role)) {
       router.replace("/admin");
+      return;
+    }
+    if (user && isReception(user.role)) {
+      router.replace("/reception");
     }
   }, [user, authLoading, router]);
 
@@ -78,7 +82,7 @@ export default function AdminLoginPage() {
     }
   };
 
-  if (authLoading || (user && isAdmin(user.role))) {
+  if (authLoading || (user && (isAdmin(user.role) || isReception(user.role)))) {
     return null;
   }
 
@@ -93,7 +97,7 @@ export default function AdminLoginPage() {
         </p>
         <h1 className="text-2xl font-black tracking-tight mb-2 text-center">Admin sign in</h1>
         <p className="text-sm text-soul-muted mb-6 text-center">
-          Profit, catalog, users, and analytics. Not for customers or floor staff.
+          Profit, catalog, users, and analytics. Floor ops (POS, orders) use Reception.
         </p>
 
         {apiReady === false && (
