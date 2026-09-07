@@ -87,7 +87,7 @@ export function middleware(req: NextRequest) {
     }
   }
 
-  // ── Admin role: /admin/* + /reception/* (floor tools) ───────
+  // ── Admin role: /admin/* only (floor is reception-only) ─────
   if (role === "admin") {
     if (isAdminLogin(pathname) && authed) {
       return applySecurityHeaders(redirectTo(req, "/admin"));
@@ -95,15 +95,11 @@ export function middleware(req: NextRequest) {
     if (pathname === "/login") {
       return applySecurityHeaders(redirectTo(req, "/admin/login"));
     }
-    if (isReceptionLogin(pathname)) {
-      return applySecurityHeaders(redirectTo(req, "/reception"));
-    }
-    const allowed = isAdminApp(pathname) || isReceptionApp(pathname);
-    if (!allowed) {
+    if (isReceptionApp(pathname)) {
       return applySecurityHeaders(redirectTo(req, "/admin"));
     }
-    if (isReceptionApp(pathname) && !isReceptionLogin(pathname) && !authed) {
-      return applySecurityHeaders(redirectTo(req, "/admin/login"));
+    if (!isAdminApp(pathname)) {
+      return applySecurityHeaders(redirectTo(req, "/admin"));
     }
     return res;
   }
@@ -115,8 +111,8 @@ export function middleware(req: NextRequest) {
 
   if (isReceptionApp(pathname)) {
     if (!authed) return applySecurityHeaders(redirectTo(req, "/reception/login"));
-    if (role && role !== "admin" && role !== "reception") {
-      return applySecurityHeaders(redirectTo(req, "/account"));
+    if (role && role !== "reception") {
+      return applySecurityHeaders(redirectTo(req, role === "admin" ? "/admin" : "/account"));
     }
     return res;
   }

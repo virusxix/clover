@@ -6,7 +6,6 @@
  */
 
 import { useEffect } from "react";
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { BrandLogo } from "@/components/layout/BrandLogo";
 import { useAuth } from "@/lib/auth-context";
@@ -64,12 +63,6 @@ export function AdminChrome({ children }: { children: React.ReactNode }) {
               <span className="text-xs text-soul-muted hidden md:inline truncate max-w-[10rem]">
                 {user.fullName}
               </span>
-              <Link
-                href="/reception"
-                className="text-[10px] font-bold tracking-widest uppercase px-3 py-2 rounded-full border border-black/10 min-h-[40px] inline-flex items-center"
-              >
-                Reception
-              </Link>
               <button
                 type="button"
                 onClick={() =>

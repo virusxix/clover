@@ -97,7 +97,7 @@ export default function AdminLoginPage() {
         </p>
         <h1 className="text-2xl font-black tracking-tight mb-2 text-center">Admin sign in</h1>
         <p className="text-sm text-soul-muted mb-6 text-center">
-          Profit, catalog, users, and analytics. Floor ops (POS, orders) use Reception.
+          Profit, catalog, users, and analytics. POS and floor ops use Reception login.
         </p>
 
         {apiReady === false && (

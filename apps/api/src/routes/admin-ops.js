@@ -1,14 +1,15 @@
 /**
- * Admin ops routes
- * ----------------
- * Inventory, store POS, ICONIC, analytics, Excel CSV export.
- * Mounted at /api/admin (auth already applied by parent or here).
+ * Ops routes
+ * ----------
+ * Floor (reception only): inventory, POS, ICONIC, customers.
+ * Owner (admin only): analytics + CSV export.
+ * Mounted at /api/admin/ops — must be registered before the catch-all admin router.
  */
 
 import { Router } from "express";
 import { z } from "zod";
 import { query } from "../db.js";
-import { requireAuth, requireAdmin, requireStoreStaff } from "../middleware/auth.js";
+import { requireAuth, requireAdmin, requireReception } from "../middleware/auth.js";
 import { toDisplayAmount } from "../currency.js";
 import { listInventory, adjustStock, transferStock } from "../inventory/stock-service.js";
 import { getPool } from "../pg-pool.js";
@@ -37,8 +38,14 @@ import {
 import { auditFromReq } from "../audit.js";
 
 const router = Router();
-// Floor ops: admin + reception. Analytics/export re-check admin below.
-router.use(requireAuth, requireStoreStaff);
+router.use(requireAuth);
+// Analytics/export → admin; everything else on this router → reception.
+router.use((req, res, next) => {
+  if (req.path.startsWith("/analytics") || req.path.startsWith("/export")) {
+    return requireAdmin(req, res, next);
+  }
+  return requireReception(req, res, next);
+});
 
 const SIZES = ["XS", "S", "M", "L", "XL"];
 

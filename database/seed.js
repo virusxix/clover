@@ -1,6 +1,6 @@
 /**
  * Seed catalog from THE CLOVER product data (categories + products).
- * Also ensures the single default admin account exists.
+ * Also ensures the default admin + reception accounts exist.
  */
 
 import bcrypt from "bcryptjs";
@@ -10,6 +10,13 @@ export const DEFAULT_ADMIN = {
   email: process.env.ADMIN_EMAIL || "admin@clover.com",
   password: process.env.ADMIN_PASSWORD || "Admin123!",
   fullName: process.env.ADMIN_NAME || "Clover Admin",
+};
+
+/** Default reception — override with RECEPTION_EMAIL / RECEPTION_PASSWORD in apps/api/.env */
+export const DEFAULT_RECEPTION = {
+  email: process.env.RECEPTION_EMAIL || "reception@clover.com",
+  password: process.env.RECEPTION_PASSWORD || "Reception123!",
+  fullName: process.env.RECEPTION_NAME || "Clover Reception",
 };
 
 export const CATEGORIES = [
@@ -156,6 +163,44 @@ export async function ensureDefaultAdmin(query) {
   );
 }
 
+/**
+ * Ensure the default reception (floor) account exists.
+ * Creates with the default password if missing; sets role to reception
+ * without overwriting a password they already set.
+ */
+export async function ensureDefaultReception(query) {
+  const isProd = process.env.NODE_ENV === "production";
+  const usingDefaultPassword =
+    !process.env.RECEPTION_PASSWORD && DEFAULT_RECEPTION.password === "Reception123!";
+
+  if (isProd && usingDefaultPassword) {
+    console.warn(
+      "[seed] Refusing default Reception123! in production — set RECEPTION_PASSWORD before seeding reception."
+    );
+    return;
+  }
+
+  const email = DEFAULT_RECEPTION.email.toLowerCase().trim();
+  if (email === DEFAULT_ADMIN.email.toLowerCase().trim()) {
+    console.warn("[seed] RECEPTION_EMAIL matches ADMIN_EMAIL — skipping reception seed.");
+    return;
+  }
+
+  const hash = await bcrypt.hash(DEFAULT_RECEPTION.password, 12);
+
+  await query(
+    `INSERT INTO users (email, password_hash, full_name, role)
+     VALUES ($1, $2, $3, 'reception'::user_role)
+     ON CONFLICT (email) DO UPDATE SET
+       role = 'reception'::user_role,
+       full_name = COALESCE(NULLIF(EXCLUDED.full_name, ''), users.full_name),
+       password_hash = EXCLUDED.password_hash`,
+    [email, hash, DEFAULT_RECEPTION.fullName]
+  );
+
+  console.log(`[seed] Default reception ready: ${email}`);
+}
+
 export async function runSeed(query) {
   await query(`
     CREATE TABLE IF NOT EXISTS app_settings (
@@ -169,6 +214,7 @@ export async function runSeed(query) {
   );
 
   await ensureDefaultAdmin(query);
+  await ensureDefaultReception(query);
 
   for (const c of CATEGORIES.filter((x) => x.id !== "all")) {
     await query(

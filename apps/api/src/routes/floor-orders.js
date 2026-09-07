@@ -1,18 +1,18 @@
 /**
- * Floor order routes (admin + reception)
- * --------------------------------------
- * Website order queue for packing desk / reception — no owner analytics.
+ * Floor order routes (reception only)
+ * -----------------------------------
+ * Website order queue for packing desk — no owner analytics.
  * Mounted at /api/admin alongside the admin-only router.
  */
 
 import { Router } from "express";
 import { z } from "zod";
 import { query } from "../db.js";
-import { requireAuth, requireStoreStaff } from "../middleware/auth.js";
+import { requireAuth, requireReception } from "../middleware/auth.js";
 import { auditFromReq } from "../audit.js";
 
 const router = Router();
-router.use(requireAuth, requireStoreStaff);
+router.use(requireAuth, requireReception);
 
 /** GET /api/admin/orders */
 router.get("/orders", async (_req, res) => {

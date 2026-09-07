@@ -151,10 +151,12 @@ app.use("/api/products", productRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/orders", checkoutLimiter, orderRoutes);
 app.use("/api/wishlist", wishlistRoutes);
-app.use("/api/admin", adminLimiter, floorOrdersRoutes);
-app.use("/api/admin", adminLimiter, adminRoutes);
+// More specific /api/admin/* mounts MUST come before the catch-all admin router
+// (admin.js uses requireAdmin on every request that enters it).
 app.use("/api/admin/ops", adminLimiter, adminOpsRoutes);
 app.use("/api/admin/upload", uploadLimiter, adminUploadRoutes);
+app.use("/api/admin", adminLimiter, floorOrdersRoutes);
+app.use("/api/admin", adminLimiter, adminRoutes);
 
 app.use((err, _req, res, _next) => {
   console.error("[unhandled]", err);

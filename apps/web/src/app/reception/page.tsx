@@ -3,8 +3,8 @@
 /**
  * Reception / floor console
  * -------------------------
- * Store-worker workspace: POS, inventory, ICONIC, website orders.
- * No owner analytics, users, profit, or catalog admin.
+ * Reception-only workspace: POS, inventory, ICONIC, website orders.
+ * Admins stay on /admin — no shared floor access.
  */
 
 import { useEffect, useState } from "react";
@@ -19,7 +19,7 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { api } from "@/lib/api";
 import { formatMMK } from "@/lib/currency";
 import { useAuth } from "@/lib/auth-context";
-import { isAdmin, isReception } from "@/lib/roles";
+import { isReception } from "@/lib/roles";
 
 type Tab = "home" | "pos" | "inventory" | "iconic" | "orders" | "customers";
 
@@ -38,10 +38,6 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "iconic", label: "ICONIC" },
 ];
 
-function canUseFloor(role?: string | null) {
-  return isReception(role) || isAdmin(role);
-}
-
 export default function ReceptionPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
@@ -56,8 +52,9 @@ export default function ReceptionPage() {
       router.replace("/reception/login");
       return;
     }
-    if (canUseFloor(user.role)) return;
-    router.replace("/account");
+    if (!isReception(user.role)) {
+      router.replace(user.role === "admin" ? "/admin" : "/account");
+    }
   }, [user, loading, router]);
 
   const loadOrders = () => {
@@ -79,7 +76,7 @@ export default function ReceptionPage() {
   };
 
   useEffect(() => {
-    if (!user || !canUseFloor(user.role)) return;
+    if (!user || !isReception(user.role)) return;
     loadPendingCount();
     loadSummary();
     const id = window.setInterval(() => {
@@ -90,13 +87,13 @@ export default function ReceptionPage() {
   }, [user, tab]);
 
   useEffect(() => {
-    if (!user || !canUseFloor(user.role)) return;
+    if (!user || !isReception(user.role)) return;
     if (tab === "orders") loadOrders();
     if (tab === "home") loadSummary();
   }, [tab, user]);
 
   useEffect(() => {
-    if (!user || !canUseFloor(user.role) || tab !== "orders") return;
+    if (!user || !isReception(user.role) || tab !== "orders") return;
     const id = window.setInterval(loadOrders, 10000);
     return () => window.clearInterval(id);
   }, [tab, user]);
@@ -136,7 +133,7 @@ export default function ReceptionPage() {
     loadSummary();
   };
 
-  if (loading || !user || !canUseFloor(user.role)) return null;
+  if (loading || !user || !isReception(user.role)) return null;
 
   return (
     <div className="max-w-6xl mx-auto px-3 sm:px-6 py-6 sm:py-10 pb-16">

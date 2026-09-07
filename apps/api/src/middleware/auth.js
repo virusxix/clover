@@ -6,14 +6,14 @@
  *
  * Roles:
  *   customer  — own cart/orders/wishlist/profile only (user_id filters in routes)
- *   reception — store floor (requireStoreStaff); no catalog admin / users / settings / analytics
- *   admin     — full manage (requireAdmin + live DB check)
+ *   reception — floor only: POS, inventory, ICONIC, orders, customers
+ *   admin     — owner console (catalog, users, analytics, settings)
  */
 
 import { verifyToken } from "../utils/jwt.js";
 import { query } from "../db.js";
 
-const STORE_STAFF_ROLES = new Set(["admin", "reception"]);
+const RECEPTION_ROLE = "reception";
 const ADMIN_ROLE = "admin";
 
 export function requireAuth(req, res, next) {
@@ -52,25 +52,26 @@ export async function requireAdmin(req, res, next) {
 }
 
 /**
- * Store floor — admin or reception (POS, inventory, ICONIC, web orders, customers).
- * Does not grant owner analytics / users / catalog admin / settings / uploads.
+ * Floor portal — reception only (POS, inventory, ICONIC, web orders, customers).
+ * Admins use /admin; they do not share floor APIs.
  */
-export async function requireStoreStaff(req, res, next) {
+export async function requireReception(req, res, next) {
   try {
     const role = await liveRole(req.user?.id);
-    if (!STORE_STAFF_ROLES.has(role)) {
-      return res.status(403).json({ error: "Store staff access required" });
+    if (role !== RECEPTION_ROLE) {
+      return res.status(403).json({ error: "Reception access required" });
     }
-    req.user.role = role;
+    req.user.role = RECEPTION_ROLE;
     next();
   } catch (err) {
-    console.error("[requireStoreStaff]", err.message);
-    return res.status(503).json({ error: "Could not verify staff access" });
+    console.error("[requireReception]", err.message);
+    return res.status(503).json({ error: "Could not verify reception access" });
   }
 }
 
-/** Explicit reception-or-admin check (alias of store staff for clarity at call sites). */
-export const requireReceptionOrAdmin = requireStoreStaff;
+/** @deprecated Floor is reception-only — alias of requireReception. */
+export const requireStoreStaff = requireReception;
+export const requireReceptionOrAdmin = requireReception;
 
 async function liveRole(userId) {
   if (!userId) return null;
@@ -78,8 +79,12 @@ async function liveRole(userId) {
   return rows[0]?.role || null;
 }
 
+export function isReceptionRole(role) {
+  return role === RECEPTION_ROLE;
+}
+
 export function isStoreStaffRole(role) {
-  return STORE_STAFF_ROLES.has(role);
+  return role === RECEPTION_ROLE || role === ADMIN_ROLE;
 }
 
 export function isAdminRole(role) {

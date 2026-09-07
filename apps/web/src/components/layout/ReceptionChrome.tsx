@@ -1,14 +1,12 @@
 "use client";
 
 /**
- * Floor portal top bar — no shop navigation.
+ * Floor portal top bar — reception only, no shop / admin navigation.
  */
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BrandLogo } from "@/components/layout/BrandLogo";
 import { useAuth } from "@/lib/auth-context";
-import { isReception } from "@/lib/roles";
 
 export function ReceptionChrome({ children }: { children: React.ReactNode }) {
   const { user, logout, loading } = useAuth();
@@ -32,16 +30,7 @@ export function ReceptionChrome({ children }: { children: React.ReactNode }) {
             <div className="flex items-center gap-2 shrink-0">
               <span className="text-xs text-soul-muted hidden md:inline truncate max-w-[10rem]">
                 {user.fullName}
-                {isReception(user.role) ? " · reception" : user.role === "admin" ? " · admin" : ""}
               </span>
-              {user.role === "admin" && (
-                <Link
-                  href="/admin"
-                  className="text-[10px] font-bold tracking-widest uppercase px-3 py-2 rounded-full border border-black/10 min-h-[40px] inline-flex items-center"
-                >
-                  Owner admin
-                </Link>
-              )}
               <button
                 type="button"
                 onClick={() => void logout().then(() => {

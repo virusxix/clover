@@ -4,7 +4,7 @@
  * Admin shell
  * -----------
  * Owner console: overview, analytics, catalog, users.
- * Floor ops (POS, orders, inventory, ICONIC, customers) live under /reception.
+ * Floor ops (POS, orders, inventory, ICONIC, customers) are reception-only.
  */
 
 import { useEffect, useState } from "react";
@@ -108,15 +108,9 @@ export default function AdminPage() {
           </p>
           <h1 className="text-xl sm:text-3xl font-black tracking-tight">THE CLOVER · Admin</h1>
           <p className="text-sm text-soul-muted mt-1">
-            Profit, catalog, users, analytics — floor ops are on Reception
+            Profit, catalog, users, analytics — POS and floor ops use the reception account
           </p>
         </div>
-        <a
-          href="/reception"
-          className="text-xs font-bold tracking-widest uppercase hover:opacity-60 min-h-[44px] inline-flex items-center"
-        >
-          Open Reception →
-        </a>
       </div>
 
       <div className="flex gap-2 mb-6 sm:mb-8 overflow-x-auto pb-1 -mx-3 px-3 sm:mx-0 sm:px-0 scrollbar-none snap-x snap-mandatory">
