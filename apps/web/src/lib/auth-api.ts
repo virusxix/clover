@@ -15,7 +15,7 @@ export function fetchCurrentUser() {
 /** Rotate refresh cookie → new access cookie. Returns false if refresh fails. */
 export async function refreshSession(): Promise<boolean> {
   try {
-    await api("/api/auth/refresh", { method: "POST" });
+    await api("/api/auth/refresh", { method: "POST", skipAuthRefresh: true });
     return true;
   } catch {
     return false;
@@ -34,6 +34,7 @@ export async function loginRequest(
     method: "POST",
     json: { email, password, portal },
     retries: 3,
+    skipAuthRefresh: true,
   });
   return res.user;
 }
@@ -48,6 +49,7 @@ export async function registerRequest(
     method: "POST",
     json: { email, password, fullName },
     retries: 3,
+    skipAuthRefresh: true,
   });
   return res.user;
 }

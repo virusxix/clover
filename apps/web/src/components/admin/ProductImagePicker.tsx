@@ -9,6 +9,7 @@
 import { useRef, useState } from "react";
 import { CatalogImage } from "@/components/ui/CatalogImage";
 import { compressProductImage } from "@/lib/compress-image";
+import { api } from "@/lib/api";
 
 type Props = {
   value: string;
@@ -32,17 +33,11 @@ export function ProductImagePicker({ value, onChange, disabled }: Props) {
       const body = new FormData();
       body.append("image", prepared);
 
-      const res = await fetch("/api/admin/upload", {
+      const data = await api<{ url: string }>("/api/admin/upload", {
         method: "POST",
-        credentials: "include",
         body,
+        retries: 1,
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(
-          typeof data.error === "string" ? data.error : `Upload failed (${res.status})`
-        );
-      }
       onChange(String(data.url));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");

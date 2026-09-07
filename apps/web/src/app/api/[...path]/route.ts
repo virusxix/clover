@@ -144,19 +144,20 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
         path: "/",
       };
 
-      if (data.accessToken && lastCookies.length === 0) {
+      // Always bind session cookies to this storefront host (www / apex / vercel).
+      // Do not rely only on upstream Set-Cookie — Domain/proxy quirks drop them.
+      if (data.accessToken) {
         res.cookies.set("accessToken", data.accessToken, {
           ...cookieBase,
           maxAge: 60 * 15,
         });
       }
-      if (data.refreshToken && lastCookies.length === 0) {
+      if (data.refreshToken) {
         res.cookies.set("refreshToken", data.refreshToken, {
           ...cookieBase,
           maxAge: 60 * 60 * 24 * 7,
         });
       }
-      // Always sync role gate cookie from live user when present (login / register / refresh).
       const role = data.user?.role;
       if (role === "admin" || role === "reception" || role === "customer") {
         res.cookies.set("cloverRole", role, {

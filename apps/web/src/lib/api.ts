@@ -3,6 +3,7 @@
  * ------------------------------
  * One job: fetch JSON from /api/* with cookies, and throw ApiError on failure.
  * Browser calls go same-origin (Vercel route proxy). Server calls use NEXT_PUBLIC_API_URL.
+ * On 401, tries one silent refresh then retries (keeps admin forms working past 15m access TTL).
  */
 
 type FetchOpts = RequestInit & {
@@ -10,6 +11,8 @@ type FetchOpts = RequestInit & {
   next?: { revalidate?: number | false };
   /** Extra retries for slow networks / cold API (default 0). */
   retries?: number;
+  /** Skip refresh-on-401 (login / refresh / logout). */
+  skipAuthRefresh?: boolean;
 };
 
 /** Error with HTTP status so callers can tell 401 from 500. */
@@ -48,11 +51,45 @@ function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+function isAuthPath(path: string) {
+  return (
+    path.startsWith("/api/auth/login") ||
+    path.startsWith("/api/auth/register") ||
+    path.startsWith("/api/auth/refresh") ||
+    path.startsWith("/api/auth/logout")
+  );
+}
+
+let refreshInFlight: Promise<boolean> | null = null;
+
+/** One shared refresh so parallel 401s do not stampede /auth/refresh. */
+async function tryRefreshSession(): Promise<boolean> {
+  if (typeof window === "undefined") return false;
+  if (!refreshInFlight) {
+    refreshInFlight = (async () => {
+      try {
+        const res = await fetch(`${getApiBase()}/api/auth/refresh`, {
+          method: "POST",
+          credentials: "include",
+          headers: { accept: "application/json" },
+        });
+        return res.ok;
+      } catch {
+        return false;
+      } finally {
+        refreshInFlight = null;
+      }
+    })();
+  }
+  return refreshInFlight;
+}
+
 /** Typed JSON fetch helper used across the storefront. */
 export async function api<T>(path: string, opts: FetchOpts = {}): Promise<T> {
-  const { json, headers, next, retries = 0, ...rest } = opts;
+  const { json, headers, next, retries = 0, skipAuthRefresh, ...rest } = opts;
   const attempts = Math.max(1, retries + 1);
   let lastError: unknown;
+  let didRefresh = false;
 
   for (let i = 0; i < attempts; i++) {
     try {
@@ -64,12 +101,26 @@ export async function api<T>(path: string, opts: FetchOpts = {}): Promise<T> {
           ...(json ? { "Content-Type": "application/json" } : {}),
           ...headers,
         },
-        body: json ? JSON.stringify(json) : rest.body,
+        body: json !== undefined ? JSON.stringify(json) : rest.body,
       });
 
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
 
       if (!res.ok) {
+        if (
+          res.status === 401 &&
+          !didRefresh &&
+          !skipAuthRefresh &&
+          !isAuthPath(path)
+        ) {
+          didRefresh = true;
+          const ok = await tryRefreshSession();
+          if (ok) {
+            i -= 1; // retry this attempt after refresh
+            continue;
+          }
+        }
+
         const retryable = [408, 425, 429, 502, 503, 504].includes(res.status);
         if (retryable && i < attempts - 1) {
           await sleep(2000 * (i + 1));
