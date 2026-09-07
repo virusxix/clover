@@ -55,7 +55,7 @@ const storage = multer.diskStorage({
  */
 export const uploadProductImage = multer({
   storage,
-  limits: { fileSize: 15 * 1024 * 1024 }, // 15MB
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB (client compresses large phone shots first)
   fileFilter(_req, file, cb) {
     const mime = (file.mimetype || "").toLowerCase();
     if (BLOCKED_IMAGE_TYPES.has(mime) || mime.includes("svg")) {

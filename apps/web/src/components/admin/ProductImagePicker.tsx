@@ -3,12 +3,12 @@
 /**
  * Product image picker
  * --------------------
- * One job: pick a photo from the device library / camera and upload it.
- * Accepts every image/* type (JPEG, PNG, HEIC, WebP, GIF, …).
+ * Pick a photo, compress large phone images in-browser, then upload.
  */
 
 import { useRef, useState } from "react";
 import { CatalogImage } from "@/components/ui/CatalogImage";
+import { compressProductImage } from "@/lib/compress-image";
 
 type Props = {
   value: string;
@@ -28,8 +28,9 @@ export function ProductImagePicker({ value, onChange, disabled }: Props) {
     setError("");
     setUploading(true);
     try {
+      const prepared = await compressProductImage(file);
       const body = new FormData();
-      body.append("image", file);
+      body.append("image", prepared);
 
       const res = await fetch("/api/admin/upload", {
         method: "POST",
@@ -73,7 +74,6 @@ export function ProductImagePicker({ value, onChange, disabled }: Props) {
             ref={inputRef}
             type="file"
             accept="image/*"
-            // Lets mobile open the photo library / camera roll
             className="sr-only"
             disabled={disabled || uploading}
             onChange={(e) => onFile(e.target.files?.[0])}
@@ -97,7 +97,7 @@ export function ProductImagePicker({ value, onChange, disabled }: Props) {
             </button>
           )}
           <p className="text-[11px] text-soul-muted leading-relaxed">
-            Any image type from your phone or computer (JPEG, PNG, HEIC, WebP, GIF, …). Max 15&nbsp;MB.
+            Large phone photos are compressed automatically before upload (JPEG / PNG / WebP).
           </p>
           {error && <p className="text-sm text-red-600">{error}</p>}
         </div>

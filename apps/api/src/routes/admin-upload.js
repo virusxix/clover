@@ -16,9 +16,11 @@ router.use(requireAuth, requireAdmin);
 router.post("/", (req, res) => {
   uploadProductImage(req, res, async (err) => {
     if (err) {
-      const msg = err.message || "Upload failed";
-      const status = err.code === "LIMIT_FILE_SIZE" ? 400 : 400;
-      return res.status(status).json({ error: msg });
+      const isTooBig = err.code === "LIMIT_FILE_SIZE";
+      const msg = isTooBig
+        ? "Image is still too large after upload. Use a smaller photo or JPEG."
+        : err.message || "Upload failed";
+      return res.status(400).json({ error: msg });
     }
     if (!req.file) {
       return res.status(400).json({ error: "No image file provided" });
