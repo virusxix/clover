@@ -17,6 +17,8 @@ export type ReceiptItem = {
   size: string;
   quantity: number;
   unitPrice: number;
+  /** Per-line discount in MMK (seller-entered). */
+  discount?: number;
   lineTotal: number;
 };
 
@@ -24,9 +26,11 @@ export type ReceiptData = {
   saleId: string;
   soldAt: string;
   total: number;
-  /** Cart subtotal before discount (MMK). */
+  /** Gross merchandise subtotal before discounts (MMK). */
   subtotal?: number;
-  /** Seller discount off the order (MMK). */
+  /** Sum of per-line discounts (MMK). */
+  itemDiscount?: number;
+  /** Order-level discount off the sale (MMK). */
   discount?: number;
   notes?: string;
   paymentMethod?: string;
@@ -84,7 +88,11 @@ function amt(n: number) {
 }
 
 function itemsSubtotal(items: ReceiptItem[]) {
-  return items.reduce((s, i) => s + (i.lineTotal || 0), 0);
+  return items.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
+}
+
+function itemsLineDiscountTotal(items: ReceiptItem[]) {
+  return items.reduce((s, i) => s + Math.max(0, Math.round(i.discount || 0)), 0);
 }
 
 function receiptSubtotal(receipt: ReceiptData) {
@@ -94,13 +102,22 @@ function receiptSubtotal(receipt: ReceiptData) {
   return itemsSubtotal(receipt.items);
 }
 
-function receiptDiscount(receipt: ReceiptData) {
+function receiptItemDiscount(receipt: ReceiptData) {
+  if (receipt.itemDiscount != null && Number.isFinite(receipt.itemDiscount)) {
+    return Math.max(0, Math.round(receipt.itemDiscount));
+  }
+  return itemsLineDiscountTotal(receipt.items);
+}
+
+function receiptOrderDiscount(receipt: ReceiptData) {
   if (receipt.discount != null && Number.isFinite(receipt.discount)) {
     return Math.max(0, Math.round(receipt.discount));
   }
-  const sub = receiptSubtotal(receipt);
-  const disc = sub - Math.round(receipt.total);
-  return disc > 0 ? disc : 0;
+  return 0;
+}
+
+function unitsLabel(units: number) {
+  return units === 1 ? "Item" : "Items";
 }
 
 /** Official brand mark — same asset as site header (/assets/logo-icon.png). */
@@ -145,13 +162,14 @@ export function PosReceipt({ receipt, className = "" }: Props) {
   const address = receipt.customerAddress?.trim() || "";
   const note = noteClean(receipt.notes);
   const sub = receiptSubtotal(receipt);
-  const discount = receiptDiscount(receipt);
+  const itemDiscount = receiptItemDiscount(receipt);
+  const orderDiscount = receiptOrderDiscount(receipt);
   const shipping = receipt.shippingCents ?? 0;
   const tax = receipt.taxCents ?? 0;
   const other =
     shipping + tax > 0
       ? shipping + tax
-      : Math.max(0, Math.round(receipt.total) - (sub - discount));
+      : Math.max(0, Math.round(receipt.total) - (sub - itemDiscount - orderDiscount));
   const units = receipt.items.reduce((s, i) => s + i.quantity, 0);
 
   return (
@@ -181,7 +199,7 @@ export function PosReceipt({ receipt, className = "" }: Props) {
           <Row label={isWeb ? "Order #" : "Receipt #"} value={no} />
           <Row label="Date" value={new Date(receipt.soldAt).toLocaleString()} />
           <Row label="Payment" value={pay} />
-          <Row label="Items" value={String(units)} />
+          <Row label={unitsLabel(units)} value={String(units)} />
           {isWeb && <Row label="Channel" value="Website" />}
           {!isWeb && <Row label="Channel" value="Store POS" />}
         </div>
@@ -211,37 +229,57 @@ export function PosReceipt({ receipt, className = "" }: Props) {
         <Dash />
 
         <div className="flex justify-between text-[10px] uppercase tracking-wide mb-1 text-black">
-          <span>Item</span>
+          <span>{unitsLabel(units)}</span>
           <span>Amount</span>
         </div>
 
         <div className="space-y-3">
-          {receipt.items.map((line, idx) => (
-            <div key={`${line.productName}-${line.size}-${idx}`}>
-              <p className="font-semibold leading-snug text-black">{line.productName}</p>
-              <p className="text-[11px] mt-0.5 text-black">
-                {[line.colorName, line.size ? `Sz ${line.size}` : null, line.productCode]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </p>
-              <div className="mt-0.5 flex justify-between gap-2 tabular-nums text-[11px] text-black">
-                <span>
-                  {line.quantity} x {amt(line.unitPrice)}
-                </span>
-                <span className="shrink-0">{amt(line.lineTotal || line.unitPrice * line.quantity)}</span>
+          {receipt.items.map((line, idx) => {
+            const lineDisc = Math.max(0, Math.round(line.discount || 0));
+            const lineGross = line.unitPrice * line.quantity;
+            const lineNet = line.lineTotal ?? lineGross - lineDisc;
+            return (
+              <div key={`${line.productName}-${line.size}-${idx}`}>
+                <p className="font-semibold leading-snug text-black">{line.productName}</p>
+                <p className="text-[11px] mt-0.5 text-black">
+                  {[line.colorName, line.size ? `Sz ${line.size}` : null, line.productCode]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+                <div className="mt-0.5 flex justify-between gap-2 tabular-nums text-[11px] text-black">
+                  <span>
+                    {line.quantity} x {amt(line.unitPrice)}
+                  </span>
+                  <span className="shrink-0">{amt(lineGross)}</span>
+                </div>
+                {lineDisc > 0 && (
+                  <div className="flex justify-between gap-2 tabular-nums text-[11px] text-black">
+                    <span>Discount</span>
+                    <span className="shrink-0">−{amt(lineDisc)}</span>
+                  </div>
+                )}
+                {lineDisc > 0 && (
+                  <div className="flex justify-between gap-2 tabular-nums text-[11px] font-semibold text-black">
+                    <span>Line total</span>
+                    <span className="shrink-0">{amt(lineNet)}</span>
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         <Dash />
 
         <div className="space-y-1 text-[12px] text-black">
           <Row label="Subtotal" value={amt(sub)} />
-          {discount > 0 && <Row label="Discount" value={`−${amt(discount)}`} />}
+          {itemDiscount > 0 && <Row label="Item discounts" value={`−${amt(itemDiscount)}`} />}
+          {orderDiscount > 0 && <Row label="Order discount" value={`−${amt(orderDiscount)}`} />}
           {isWeb && shipping > 0 && <Row label="Shipping" value={amt(shipping)} />}
           {isWeb && tax > 0 && <Row label="Tax" value={amt(tax)} />}
-          {!isWeb && other > 0 && discount === 0 && <Row label="Other" value={amt(other)} />}
+          {!isWeb && other > 0 && itemDiscount === 0 && orderDiscount === 0 && (
+            <Row label="Other" value={amt(other)} />
+          )}
           {isWeb && shipping + tax === 0 && other > 0 && (
             <Row label="Shipping / tax" value={amt(other)} />
           )}
@@ -298,7 +336,8 @@ export function buildTestReceipt(): ReceiptData {
     saleId: "00000000-test-print-xp80",
     soldAt: new Date().toISOString(),
     subtotal: 275000,
-    discount: 15000,
+    itemDiscount: 10000,
+    discount: 5000,
     total: 260000,
     paymentMethod: "cash",
     channel: "store",
@@ -314,7 +353,8 @@ export function buildTestReceipt(): ReceiptData {
         size: "M",
         quantity: 1,
         unitPrice: 185000,
-        lineTotal: 185000,
+        discount: 10000,
+        lineTotal: 175000,
       },
       {
         productName: "Scoop Sports Bra",
@@ -411,15 +451,23 @@ function itemLinesHtml(items: ReceiptItem[]) {
       const meta = [line.colorName, line.size ? `Sz ${line.size}` : null, line.productCode]
         .filter(Boolean)
         .join(" · ");
-      const lineAmt = line.lineTotal || line.unitPrice * line.quantity;
+      const lineGross = line.unitPrice * line.quantity;
+      const lineDisc = Math.max(0, Math.round(line.discount || 0));
+      const lineNet = line.lineTotal ?? lineGross - lineDisc;
       return `
       <div class="item">
         <div class="iname">${escapeHtml(line.productName)}</div>
         ${meta ? `<div class="imeta">${escapeHtml(meta)}</div>` : ""}
         <div class="irow">
           <span>${line.quantity} x ${amt(line.unitPrice)}</span>
-          <span>${amt(lineAmt)}</span>
+          <span>${amt(lineGross)}</span>
         </div>
+        ${
+          lineDisc > 0
+            ? `<div class="irow"><span>Discount</span><span>-${amt(lineDisc)}</span></div>
+               <div class="irow"><span>Line total</span><span>${amt(lineNet)}</span></div>`
+            : ""
+        }
       </div>`;
     })
     .join("");
@@ -436,7 +484,8 @@ function buildStorePrintHtml(receipt: ReceiptData, paperMm: PaperWidthMm) {
   const small = isNarrow ? 12 : 13;
   const brand = isNarrow ? 15 : 17;
   const sub = receiptSubtotal(receipt);
-  const discount = receiptDiscount(receipt);
+  const itemDiscount = receiptItemDiscount(receipt);
+  const orderDiscount = receiptOrderDiscount(receipt);
   const units = receipt.items.reduce((s, i) => s + i.quantity, 0);
   const name = escapeHtml(receipt.customerName?.trim() || "");
   const note = noteClean(receipt.notes);
@@ -467,7 +516,7 @@ function buildStorePrintHtml(receipt: ReceiptData, paperMm: PaperWidthMm) {
     <div class="row"><span class="k">Receipt #</span><span class="v">${no}</span></div>
     <div class="row"><span class="k">Date</span><span class="v">${escapeHtml(when)}</span></div>
     <div class="row"><span class="k">Payment</span><span class="v">${escapeHtml(pay)}</span></div>
-    <div class="row"><span class="k">Items</span><span class="v">${units}</span></div>
+    <div class="row"><span class="k">${unitsLabel(units)}</span><span class="v">${units}</span></div>
   </div>
   ${name ? `<div class="dash"></div><div class="block">Customer: ${name}</div>` : ""}
   <div class="dash"></div>
@@ -476,8 +525,13 @@ function buildStorePrintHtml(receipt: ReceiptData, paperMm: PaperWidthMm) {
   <div class="block">
     <div class="row"><span class="k">Subtotal</span><span class="v">${amt(sub)}</span></div>
     ${
-      discount > 0
-        ? `<div class="row"><span class="k">Discount</span><span class="v">-${amt(discount)}</span></div>`
+      itemDiscount > 0
+        ? `<div class="row"><span class="k">Item discounts</span><span class="v">-${amt(itemDiscount)}</span></div>`
+        : ""
+    }
+    ${
+      orderDiscount > 0
+        ? `<div class="row"><span class="k">Order discount</span><span class="v">-${amt(orderDiscount)}</span></div>`
         : ""
     }
     <div class="total-row">
@@ -714,7 +768,8 @@ export async function downloadReceiptPng(
   const pay = PAY_LABELS[receipt.paymentMethod || "cash"] || "Cash";
   const note = noteClean(receipt.notes);
   const sub = receiptSubtotal(receipt);
-  const discount = receiptDiscount(receipt);
+  const itemDiscount = receiptItemDiscount(receipt);
+  const orderDiscount = receiptOrderDiscount(receipt);
   const units = receipt.items.reduce((s, i) => s + i.quantity, 0);
   const shortId = receipt.saleId.slice(0, 8).toUpperCase();
 
@@ -747,7 +802,7 @@ export async function downloadReceiptPng(
   pair(receipt.channel === "website" ? "Order #" : "Receipt #", no);
   pair("Date", when);
   pair("Payment", pay);
-  pair("Items", String(units));
+  pair(unitsLabel(units), String(units));
   pair("Channel", receipt.channel === "website" ? "Website" : "Store POS");
 
   if (receipt.customerName?.trim() || receipt.customerPhone?.trim() || receipt.customerAddress?.trim()) {
@@ -762,7 +817,7 @@ export async function downloadReceiptPng(
   gap(4);
   ops.push({ k: "dash" });
   gap(4);
-  pair("ITEM", "AMOUNT", fsSm);
+  pair(unitsLabel(units).toUpperCase(), "AMOUNT", fsSm);
 
   for (const item of receipt.items) {
     gap(6);
@@ -771,14 +826,21 @@ export async function downloadReceiptPng(
       .filter(Boolean)
       .join(" · ");
     if (meta) text(meta, fsSm, "600");
-    pair(`${item.quantity} x ${amt(item.unitPrice)}`, amt(item.lineTotal), fsSm);
+    const lineGross = item.unitPrice * item.quantity;
+    const lineDisc = Math.max(0, Math.round(item.discount || 0));
+    pair(`${item.quantity} x ${amt(item.unitPrice)}`, amt(lineGross), fsSm);
+    if (lineDisc > 0) {
+      pair("Discount", `-${amt(lineDisc)}`, fsSm);
+      pair("Line total", amt(lineGross - lineDisc), fsSm);
+    }
   }
 
   gap(4);
   ops.push({ k: "dash" });
   gap(4);
   pair("Subtotal", amt(sub));
-  if (discount > 0) pair("Discount", `-${amt(discount)}`);
+  if (itemDiscount > 0) pair("Item discounts", `-${amt(itemDiscount)}`);
+  if (orderDiscount > 0) pair("Order discount", `-${amt(orderDiscount)}`);
   gap(4);
   text(`TOTAL  ${formatMMK(receipt.total)}`, fsTotal, "700", "center");
 

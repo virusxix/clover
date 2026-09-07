@@ -44,6 +44,8 @@ type CartLine = {
   unitPrice: number;
   quantity: number;
   maxQty: number;
+  /** Per-line discount in MMK */
+  discount: number;
 };
 
 type SaleRow = {
@@ -163,11 +165,16 @@ export function PosTerminal() {
     );
   }, [styles, q]);
 
-  const cartSubtotal = cart.reduce((s, l) => s + l.unitPrice * l.quantity, 0);
+  const cartGross = cart.reduce((s, l) => s + l.unitPrice * l.quantity, 0);
+  const cartItemDiscount = cart.reduce((s, l) => {
+    const max = l.unitPrice * l.quantity;
+    return s + Math.min(max, Math.max(0, Math.round(l.discount || 0)));
+  }, 0);
+  const afterItems = cartGross - cartItemDiscount;
   const cartUnits = cart.reduce((s, l) => s + l.quantity, 0);
   const discountParsed = Math.max(0, Math.round(Number(discountInput.replace(/,/g, "")) || 0));
-  const discountAmt = Math.min(discountParsed, cartSubtotal);
-  const cartTotal = Math.max(0, cartSubtotal - discountAmt);
+  const orderDiscountAmt = Math.min(discountParsed, afterItems);
+  const cartTotal = Math.max(0, afterItems - orderDiscountAmt);
 
   const load = () => {
     Promise.all([
@@ -226,6 +233,7 @@ export function PosTerminal() {
           unitPrice: color.price,
           quantity: 1,
           maxQty: sizeRow.qty,
+          discount: 0,
         },
       ];
     });
@@ -239,9 +247,25 @@ export function PosTerminal() {
         .map((l) => {
           if (l.key !== key) return l;
           const q = Math.max(0, Math.min(l.maxQty, quantity));
-          return { ...l, quantity: q };
+          const maxDisc = l.unitPrice * q;
+          return {
+            ...l,
+            quantity: q,
+            discount: Math.min(l.discount || 0, maxDisc),
+          };
         })
         .filter((l) => l.quantity > 0)
+    );
+  };
+
+  const setLineDiscount = (key: string, raw: string) => {
+    const n = Math.max(0, Math.round(Number(String(raw).replace(/,/g, "")) || 0));
+    setCart((prev) =>
+      prev.map((l) => {
+        if (l.key !== key) return l;
+        const max = l.unitPrice * l.quantity;
+        return { ...l, discount: Math.min(n, max) };
+      })
     );
   };
 
@@ -257,8 +281,8 @@ export function PosTerminal() {
       setError("Cart is empty");
       return;
     }
-    if (discountParsed > cartSubtotal) {
-      setError("Discount cannot be greater than the subtotal");
+    if (discountParsed > afterItems) {
+      setError("Order discount cannot be greater than the amount after item discounts");
       return;
     }
     setSaving(true);
@@ -269,12 +293,13 @@ export function PosTerminal() {
         json: {
           paymentMethod,
           notes: notes.trim() || undefined,
-          discount: discountAmt,
+          discount: orderDiscountAmt,
           items: cart.map((l) => ({
             variantId: l.variantId,
             size: l.size,
             quantity: l.quantity,
             unitPrice: l.unitPrice,
+            discount: Math.min(l.unitPrice * l.quantity, Math.max(0, Math.round(l.discount || 0))),
           })),
         },
       });
@@ -418,40 +443,78 @@ export function PosTerminal() {
                 Tap a product to add it
               </p>
             )}
-            {cart.map((line) => (
-              <div
-                key={line.key}
-                className="rounded-xl bg-white/60 border border-black/5 p-3 flex gap-3 items-start"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold text-sm leading-snug">{line.productName}</p>
-                  <p className="text-[11px] text-soul-muted">
-                    {[line.productCode, line.colorName, `Sz ${line.size}`].filter(Boolean).join(" · ")}
-                  </p>
-                  <p className="text-xs mt-1">{formatMMK(line.unitPrice)}</p>
+            {cart.map((line) => {
+              const lineGross = line.unitPrice * line.quantity;
+              const lineDisc = Math.min(lineGross, Math.max(0, line.discount || 0));
+              const lineNet = lineGross - lineDisc;
+              return (
+                <div
+                  key={line.key}
+                  className="rounded-xl bg-white/60 border border-black/5 p-3 flex flex-col gap-2"
+                >
+                  <div className="flex gap-3 items-start">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-sm leading-snug">{line.productName}</p>
+                      <p className="text-[11px] text-soul-muted">
+                        {[line.productCode, line.colorName, `Sz ${line.size}`].filter(Boolean).join(" · ")}
+                      </p>
+                      <p className="text-xs mt-1">{formatMMK(line.unitPrice)} each</p>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        className="w-9 h-9 rounded-full glass text-lg leading-none"
+                        onClick={() => setQty(line.key, line.quantity - 1)}
+                        aria-label="Decrease"
+                      >
+                        −
+                      </button>
+                      <span className="w-8 text-center font-semibold text-sm">{line.quantity}</span>
+                      <button
+                        type="button"
+                        className="w-9 h-9 rounded-full glass text-lg leading-none"
+                        onClick={() => setQty(line.key, line.quantity + 1)}
+                        aria-label="Increase"
+                        disabled={line.quantity >= line.maxQty}
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between border-t border-black/5 pt-2">
+                    <label className="flex items-center gap-2 min-w-0 flex-1">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-soul-muted shrink-0">
+                        Disc.
+                      </span>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        max={lineGross}
+                        step={1000}
+                        value={line.discount || ""}
+                        onChange={(e) => setLineDiscount(line.key, e.target.value)}
+                        placeholder="0"
+                        aria-label={`Discount for ${line.productName}`}
+                        className="w-full max-w-[9rem] px-2.5 py-2 rounded-lg border border-black/10 bg-white text-base tabular-nums min-h-[40px]"
+                      />
+                    </label>
+                    <p className="text-sm font-bold tabular-nums shrink-0 text-right">
+                      {lineDisc > 0 ? (
+                        <>
+                          <span className="text-soul-muted font-medium line-through mr-2 text-xs">
+                            {formatMMK(lineGross)}
+                          </span>
+                          {formatMMK(lineNet)}
+                        </>
+                      ) : (
+                        formatMMK(lineGross)
+                      )}
+                    </p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  <button
-                    type="button"
-                    className="w-9 h-9 rounded-full glass text-lg leading-none"
-                    onClick={() => setQty(line.key, line.quantity - 1)}
-                    aria-label="Decrease"
-                  >
-                    −
-                  </button>
-                  <span className="w-8 text-center font-semibold text-sm">{line.quantity}</span>
-                  <button
-                    type="button"
-                    className="w-9 h-9 rounded-full glass text-lg leading-none"
-                    onClick={() => setQty(line.key, line.quantity + 1)}
-                    aria-label="Increase"
-                    disabled={line.quantity >= line.maxQty}
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <div className="border-t border-black/10 pt-4 mt-4 space-y-3">
@@ -480,14 +543,14 @@ export function PosTerminal() {
                 htmlFor="pos-discount"
                 className="block text-[10px] font-bold tracking-widest uppercase text-soul-muted mb-1.5"
               >
-                Discount (Ks)
+                Order discount (Ks)
               </label>
               <input
                 id="pos-discount"
                 type="number"
                 inputMode="numeric"
                 min={0}
-                max={cartSubtotal || undefined}
+                max={afterItems || undefined}
                 step={1000}
                 value={discountInput}
                 onChange={(e) => setDiscountInput(e.target.value)}
@@ -495,21 +558,27 @@ export function PosTerminal() {
                 disabled={cart.length === 0}
                 className="w-full px-3 py-2.5 rounded-xl border border-black/10 bg-white/70 text-base min-h-[44px] tabular-nums disabled:opacity-50"
               />
-              {discountParsed > cartSubtotal && cartSubtotal > 0 && (
-                <p className="text-[11px] text-red-600 mt-1">Max discount is {formatMMK(cartSubtotal)}</p>
+              {discountParsed > afterItems && afterItems >= 0 && cart.length > 0 && (
+                <p className="text-[11px] text-red-600 mt-1">Max order discount is {formatMMK(afterItems)}</p>
               )}
             </div>
             <div className="space-y-1">
               <div className="flex justify-between items-baseline text-sm">
                 <span className="text-soul-muted">
-                  Subtotal · {cartUnits} item{cartUnits === 1 ? "" : "s"}
+                  Subtotal · {cartUnits} {cartUnits === 1 ? "item" : "items"}
                 </span>
-                <span className="tabular-nums font-medium">{formatMMK(cartSubtotal)}</span>
+                <span className="tabular-nums font-medium">{formatMMK(cartGross)}</span>
               </div>
-              {discountAmt > 0 && (
+              {cartItemDiscount > 0 && (
                 <div className="flex justify-between items-baseline text-sm">
-                  <span className="text-soul-muted">Discount</span>
-                  <span className="tabular-nums font-medium text-soul-sale">−{formatMMK(discountAmt)}</span>
+                  <span className="text-soul-muted">Item discounts</span>
+                  <span className="tabular-nums font-medium text-soul-sale">−{formatMMK(cartItemDiscount)}</span>
+                </div>
+              )}
+              {orderDiscountAmt > 0 && (
+                <div className="flex justify-between items-baseline text-sm">
+                  <span className="text-soul-muted">Order discount</span>
+                  <span className="tabular-nums font-medium text-soul-sale">−{formatMMK(orderDiscountAmt)}</span>
                 </div>
               )}
               <div className="flex justify-between items-baseline pt-1 border-t border-black/10">
@@ -520,7 +589,7 @@ export function PosTerminal() {
             <button
               type="button"
               onClick={checkout}
-              disabled={saving || cart.length === 0 || discountParsed > cartSubtotal}
+              disabled={saving || cart.length === 0 || discountParsed > afterItems}
               className="btn-soul--dark rounded-full w-full min-h-[52px] text-xs disabled:opacity-50"
             >
               {saving ? "Processing…" : "Charge & print ready"}

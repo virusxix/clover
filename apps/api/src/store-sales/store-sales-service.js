@@ -1,8 +1,8 @@
 /**
  * Store sales (physical POS)
  * --------------------------
- * One job: record a walk-in sale and deduct STORE location stock.
- * Supports a seller-entered order discount (MMK) off the cart subtotal.
+ * Walk-in sale + STORE stock deduct.
+ * Supports per-line discounts and an optional order-level discount (MMK).
  */
 
 import { getPool } from "../pg-pool.js";
@@ -11,9 +11,9 @@ import { adjustStock } from "../inventory/stock-service.js";
 
 /**
  * @param {{
- *   items: Array<{ variantId, size, quantity, unitPrice }>,
+ *   items: Array<{ variantId, size, quantity, unitPrice, discount? }>,
  *   notes?, soldAt?, createdBy?, paymentMethod?,
- *   discount?: number  // MMK whole units off the subtotal
+ *   discount?: number  // order-level MMK off after line discounts
  * }}
  */
 export async function createStoreSale({
@@ -30,13 +30,14 @@ export async function createStoreSale({
     throw err;
   }
 
-  const discountAmt = Math.max(0, Math.round(Number(discount) || 0));
+  const orderDiscount = Math.max(0, Math.round(Number(discount) || 0));
 
   const client = await getPool().then((p) => p.connect());
   try {
     await client.query("BEGIN");
 
-    let subtotal = 0;
+    let grossSubtotal = 0;
+    let lineDiscountsTotal = 0;
     const resolved = [];
 
     for (const line of items) {
@@ -54,26 +55,39 @@ export async function createStoreSale({
       }
       const v = rows[0];
       const unitPrice = line.unitPrice ?? v.price_cents;
-      subtotal += unitPrice * line.quantity;
+      const qty = line.quantity;
+      const lineGross = unitPrice * qty;
+      const lineDiscount = Math.min(
+        lineGross,
+        Math.max(0, Math.round(Number(line.discount) || 0))
+      );
+      const lineTotal = lineGross - lineDiscount;
+
+      grossSubtotal += lineGross;
+      lineDiscountsTotal += lineDiscount;
+
       resolved.push({
         variantId: v.id,
         productName: v.name,
         productCode: v.product_code,
         variantName: v.color_name,
         size: line.size,
-        quantity: line.quantity,
+        quantity: qty,
         unitPrice,
         unitCost: v.cost_cents,
+        discount: lineDiscount,
+        lineTotal,
       });
     }
 
-    if (discountAmt > subtotal) {
-      const err = new Error("Discount cannot be greater than the subtotal");
+    const afterLines = grossSubtotal - lineDiscountsTotal;
+    if (orderDiscount > afterLines) {
+      const err = new Error("Order discount cannot be greater than the amount after item discounts");
       err.status = 400;
       throw err;
     }
 
-    const total = subtotal - discountAmt;
+    const total = afterLines - orderDiscount;
 
     const saleNotes = [notes, paymentMethod ? `pay:${paymentMethod}` : ""]
       .filter(Boolean)
@@ -82,7 +96,7 @@ export async function createStoreSale({
     const { rows: saleRows } = await client.query(
       `INSERT INTO store_sales (sold_at, total_cents, discount_cents, notes, created_by)
        VALUES ($1, $2, $3, $4, $5) RETURNING id, sold_at, total_cents, discount_cents, notes`,
-      [soldAt, total, discountAmt, saleNotes, createdBy]
+      [soldAt, total, orderDiscount, saleNotes, createdBy]
     );
     const sale = saleRows[0];
 
@@ -90,8 +104,8 @@ export async function createStoreSale({
       await client.query(
         `INSERT INTO store_sale_items (
            sale_id, variant_id, product_name, variant_name, size,
-           quantity, unit_price_cents, unit_cost_cents
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+           quantity, unit_price_cents, unit_cost_cents, discount_cents
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
         [
           sale.id,
           line.variantId,
@@ -101,6 +115,7 @@ export async function createStoreSale({
           line.quantity,
           line.unitPrice,
           line.unitCost,
+          line.discount,
         ]
       );
 
@@ -122,7 +137,8 @@ export async function createStoreSale({
     return {
       saleId: sale.id,
       soldAt: sale.sold_at,
-      subtotal,
+      subtotal: grossSubtotal,
+      itemDiscount: lineDiscountsTotal,
       discount: sale.discount_cents,
       total: sale.total_cents,
       notes: sale.notes,
@@ -131,7 +147,6 @@ export async function createStoreSale({
       items: resolved.map((line) => ({
         ...line,
         colorName: line.variantName,
-        lineTotal: line.unitPrice * line.quantity,
       })),
     };
   } catch (err) {
@@ -170,6 +185,7 @@ export async function getStoreSaleById(db, saleId) {
   const { rows: items } = await db.query(
     `SELECT i.variant_id, i.product_name, i.variant_name, i.size,
             i.quantity, i.unit_price_cents, i.unit_cost_cents,
+            COALESCE(i.discount_cents, 0)::int AS discount_cents,
             p.product_code
      FROM store_sale_items i
      LEFT JOIN product_variants v ON v.id = i.variant_id
@@ -180,18 +196,10 @@ export async function getStoreSaleById(db, saleId) {
   );
 
   const sale = rows[0];
-  const subtotal = items.reduce((s, i) => s + i.unit_price_cents * i.quantity, 0);
-  const discount = sale.discount_cents ?? 0;
-  return {
-    saleId: sale.id,
-    soldAt: sale.sold_at,
-    subtotal,
-    discount,
-    total: sale.total_cents,
-    notes: sale.notes,
-    paymentMethod: parsePayMethod(sale.notes),
-    channel: "store",
-    items: items.map((i) => ({
+  const mapped = items.map((i) => {
+    const lineGross = i.unit_price_cents * i.quantity;
+    const discount = i.discount_cents || 0;
+    return {
       variantId: i.variant_id,
       productName: i.product_name,
       productCode: i.product_code,
@@ -201,8 +209,24 @@ export async function getStoreSaleById(db, saleId) {
       quantity: i.quantity,
       unitPrice: i.unit_price_cents,
       unitCost: i.unit_cost_cents,
-      lineTotal: i.unit_price_cents * i.quantity,
-    })),
+      discount,
+      lineTotal: lineGross - discount,
+    };
+  });
+  const subtotal = mapped.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
+  const itemDiscount = mapped.reduce((s, i) => s + (i.discount || 0), 0);
+
+  return {
+    saleId: sale.id,
+    soldAt: sale.sold_at,
+    subtotal,
+    itemDiscount,
+    discount: sale.discount_cents ?? 0,
+    total: sale.total_cents,
+    notes: sale.notes,
+    paymentMethod: parsePayMethod(sale.notes),
+    channel: "store",
+    items: mapped,
   };
 }
 

@@ -81,6 +81,9 @@ CREATE TABLE IF NOT EXISTS store_sale_items (
   unit_cost_cents  INT NOT NULL DEFAULT 0
 );
 
+ALTER TABLE store_sale_items
+  ADD COLUMN IF NOT EXISTS discount_cents INT NOT NULL DEFAULT 0 CHECK (discount_cents >= 0);
+
 CREATE INDEX IF NOT EXISTS idx_store_sales_sold ON store_sales(sold_at DESC);
 
 -- ─── ICONIC: stock we send (consignment) ──────────────────────

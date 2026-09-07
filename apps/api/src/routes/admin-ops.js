@@ -203,6 +203,7 @@ router.get("/store-sales/:id", async (req, res) => {
         saleId: sale.saleId,
         soldAt: sale.soldAt,
         subtotal: toDisplayAmount(sale.subtotal),
+        itemDiscount: toDisplayAmount(sale.itemDiscount || 0),
         discount: toDisplayAmount(sale.discount || 0),
         total: toDisplayAmount(sale.total),
         notes: sale.notes,
@@ -216,7 +217,8 @@ router.get("/store-sales/:id", async (req, res) => {
           size: i.size,
           quantity: i.quantity,
           unitPrice: toDisplayAmount(i.unitPrice),
-          lineTotal: toDisplayAmount(i.unitPrice * i.quantity),
+          discount: toDisplayAmount(i.discount || 0),
+          lineTotal: toDisplayAmount(i.lineTotal),
         })),
       },
     });
@@ -241,6 +243,7 @@ router.post("/store-sales", async (req, res) => {
             size: z.string().min(1).max(8),
             quantity: z.coerce.number().int().positive(),
             unitPrice: z.coerce.number().int().positive().optional(),
+            discount: z.coerce.number().int().min(0).max(50_000_000).optional().default(0),
           })
         )
         .min(1),
@@ -267,6 +270,7 @@ router.post("/store-sales", async (req, res) => {
       saleId: result.saleId,
       soldAt: result.soldAt,
       subtotal: toDisplayAmount(result.subtotal),
+      itemDiscount: toDisplayAmount(result.itemDiscount || 0),
       discount: toDisplayAmount(result.discount),
       total: toDisplayAmount(result.total),
       notes: result.notes,
@@ -280,7 +284,8 @@ router.post("/store-sales", async (req, res) => {
         size: i.size,
         quantity: i.quantity,
         unitPrice: toDisplayAmount(i.unitPrice),
-        lineTotal: toDisplayAmount(i.unitPrice * i.quantity),
+        discount: toDisplayAmount(i.discount || 0),
+        lineTotal: toDisplayAmount(i.lineTotal),
       })),
     });
   } catch (err) {
