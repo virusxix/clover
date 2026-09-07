@@ -7,7 +7,7 @@
 
 import { useMemo, useState } from "react";
 
-export const ADMIN_SIZES = ["XS", "S", "M", "L", "XL", "3XL"] as const;
+export const ADMIN_SIZES = ["XS", "S", "M", "L", "XL", "2XL", "3XL"] as const;
 
 export type CatalogVariant = {
   variantId: string;

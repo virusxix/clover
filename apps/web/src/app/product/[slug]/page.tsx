@@ -44,7 +44,7 @@ type ProductDetail = {
   variants: Variant[];
 };
 
-const SIZES = ["XS", "S", "M", "L", "XL", "3XL"];
+const SIZES = ["XS", "S", "M", "L", "XL", "2XL", "3XL"];
 
 export default function ProductPage() {
   const { slug } = useParams<{ slug: string }>();
