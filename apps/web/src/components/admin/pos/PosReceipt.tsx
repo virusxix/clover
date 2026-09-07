@@ -11,6 +11,7 @@ import { PAYMENT_LABELS } from "@/lib/payments";
 import { CLOVER_LOGO_DATA_URL } from "./clover-logo-data";
 
 export type ReceiptItem = {
+  variantId?: string;
   productName: string;
   productCode?: string | null;
   colorName: string;

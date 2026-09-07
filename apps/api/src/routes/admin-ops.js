@@ -17,6 +17,8 @@ import {
   createStoreSale,
   listStoreSales,
   getStoreSaleById,
+  updateStoreSale,
+  deleteStoreSale,
 } from "../store-sales/store-sales-service.js";
 import {
   createIconicTransfer,
@@ -214,9 +216,10 @@ router.post("/inventory/transfer", async (req, res) => {
 
 // ─── Store POS ────────────────────────────────────────────────
 
-router.get("/store-sales", async (_req, res) => {
+router.get("/store-sales", async (req, res) => {
   try {
-    const rows = await listStoreSales({ query });
+    const limit = Math.min(200, Math.max(1, parseInt(String(req.query.limit || "50"), 10) || 50));
+    const rows = await listStoreSales({ query }, { limit });
     res.json({
       sales: rows.map((s) => ({
         id: s.id,
@@ -337,6 +340,101 @@ router.post("/store-sales", async (req, res) => {
     });
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message || "Sale failed" });
+  }
+});
+
+const storeSaleItemsSchema = z
+  .array(
+    z.object({
+      variantId: z.string().uuid(),
+      size: z.string().min(1).max(8),
+      quantity: z.coerce.number().int().positive(),
+      unitPrice: z.coerce.number().int().positive().optional(),
+      discount: z.coerce.number().int().min(0).max(50_000_000).optional().default(0),
+    })
+  )
+  .min(1);
+
+/** PATCH — admin only: edit receipt lines (size/qty/items). Reception cannot. */
+router.patch("/store-sales/:id", requireAdmin, async (req, res) => {
+  const parsed = z
+    .object({
+      notes: z.string().max(500).optional(),
+      paymentMethod: z.enum(["cash", "kbzpay", "mmqr", "card"]).optional(),
+      customerId: z.string().uuid().optional().nullable(),
+      discount: z.coerce.number().int().min(0).max(50_000_000).optional().default(0),
+      items: storeSaleItemsSchema,
+    })
+    .safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({
+      error: "Invalid receipt update",
+      details: parsed.error.flatten(),
+    });
+  }
+
+  try {
+    const current = await getStoreSaleById({ query }, req.params.id);
+    if (!current) return res.status(404).json({ error: "Sale not found" });
+
+    const result = await updateStoreSale({
+      saleId: req.params.id,
+      items: parsed.data.items,
+      notes: parsed.data.notes ?? current.notes,
+      paymentMethod: parsed.data.paymentMethod || current.paymentMethod || "cash",
+      discount: parsed.data.discount,
+      customerId: parsed.data.customerId,
+      createdBy: req.user.id,
+    });
+
+    await auditFromReq(req, "store_sale_edit", "store_sale", result.saleId, {
+      total: result.total,
+      itemCount: result.items?.length || 0,
+    });
+
+    res.json({
+      sale: {
+        saleId: result.saleId,
+        soldAt: result.soldAt,
+        subtotal: toDisplayAmount(result.subtotal),
+        itemDiscount: toDisplayAmount(result.itemDiscount || 0),
+        discount: toDisplayAmount(result.discount),
+        total: toDisplayAmount(result.total),
+        notes: result.notes,
+        paymentMethod: result.paymentMethod,
+        customerId: result.customerId || null,
+        channel: "store",
+        items: result.items.map((i) => ({
+          variantId: i.variantId,
+          productName: i.productName,
+          productCode: i.productCode,
+          colorName: i.variantName,
+          size: i.size,
+          quantity: i.quantity,
+          unitPrice: toDisplayAmount(i.unitPrice),
+          discount: toDisplayAmount(i.discount || 0),
+          lineTotal: toDisplayAmount(i.lineTotal),
+        })),
+      },
+    });
+  } catch (err) {
+    console.error("[ops/store-sales/:id PATCH]", err);
+    res.status(err.status || 500).json({ error: err.message || "Failed to update receipt" });
+  }
+});
+
+/** DELETE — admin only: void receipt and restock. Reception cannot. */
+router.delete("/store-sales/:id", requireAdmin, async (req, res) => {
+  try {
+    const result = await deleteStoreSale({
+      saleId: req.params.id,
+      createdBy: req.user.id,
+    });
+    await auditFromReq(req, "store_sale_void", "store_sale", result.saleId, {});
+    res.json({ ok: true, saleId: result.saleId });
+  } catch (err) {
+    console.error("[ops/store-sales/:id DELETE]", err);
+    res.status(err.status || 500).json({ error: err.message || "Failed to delete receipt" });
   }
 });
 

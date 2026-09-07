@@ -3,8 +3,8 @@
 /**
  * Admin shell
  * -----------
- * Owner console: overview, analytics, catalog, users.
- * Floor ops (POS, orders, inventory, ICONIC, customers) are reception-only.
+ * Owner console: overview, analytics, catalog, receipts, users.
+ * Floor POS stays on Reception; admin can edit/void shared store receipts.
  */
 
 import { useEffect, useState } from "react";
@@ -13,13 +13,14 @@ import { AdminProductsTab, AdminProduct } from "@/components/admin/AdminProducts
 import { AdminSaleSettings } from "@/components/admin/AdminSaleSettings";
 import { AdminAnalyticsTab } from "@/components/admin/AdminAnalyticsTab";
 import { AdminUsersTab, type AdminUser } from "@/components/admin/AdminUsersTab";
+import { AdminReceiptsTab } from "@/components/admin/AdminReceiptsTab";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { api } from "@/lib/api";
 import { formatMMK } from "@/lib/currency";
 import { useAuth } from "@/lib/auth-context";
 import { isAdmin, isReception } from "@/lib/roles";
 
-type Tab = "dashboard" | "analytics" | "products" | "users";
+type Tab = "dashboard" | "analytics" | "products" | "receipts" | "users";
 
 type Dashboard = {
   totalSales: number;
@@ -32,6 +33,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "dashboard", label: "Overview" },
   { id: "analytics", label: "Analytics" },
   { id: "products", label: "Products" },
+  { id: "receipts", label: "Receipts" },
   { id: "users", label: "Users" },
 ];
 
@@ -176,6 +178,8 @@ export default function AdminPage() {
           saleDiscountPercent={saleDiscountPercent}
         />
       )}
+
+      {tab === "receipts" && <AdminReceiptsTab />}
 
       {tab === "users" && <AdminUsersTab users={users} onRoleChange={updateUserRole} />}
     </div>
