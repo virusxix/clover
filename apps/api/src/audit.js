@@ -4,7 +4,7 @@
  * Best-effort writes — never block the primary action on audit failure.
  */
 
-import { query } from "../db.js";
+import { query } from "./db.js";
 
 /**
  * @param {{
