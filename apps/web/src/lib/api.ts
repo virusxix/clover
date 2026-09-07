@@ -98,7 +98,7 @@ export type User = {
   id: string;
   email: string;
   fullName: string;
-  role: "customer" | "admin";
+  role: "customer" | "admin" | "reception";
   phone?: string;
 };
 

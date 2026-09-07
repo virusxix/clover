@@ -3,7 +3,7 @@
 /**
  * Admin users list
  * ----------------
- * Search, role filter, pagination — compact rows for large user lists.
+ * Search, role filter, pagination — assign customer | reception | admin.
  */
 
 import { useMemo, useState } from "react";
@@ -21,6 +21,7 @@ export type AdminUser = {
 
 type Props = {
   users: AdminUser[];
+  onRoleChange?: (userId: string, role: string, confirmPassword?: string) => Promise<void>;
 };
 
 function dedupeUsers(users: AdminUser[]) {
@@ -43,10 +44,20 @@ function formatDate(raw?: string) {
   });
 }
 
-export function AdminUsersTab({ users }: Props) {
+function roleBadgeClass(role: string) {
+  if (role === "admin") return "bg-black text-white";
+  if (role === "reception") return "bg-emerald-800 text-white";
+  return "bg-neutral-100 text-soul-muted";
+}
+
+export function AdminUsersTab({ users, onRoleChange }: Props) {
   const [q, setQ] = useState("");
   const [role, setRole] = useState("");
   const [page, setPage] = useState(1);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const [pendingAdmin, setPendingAdmin] = useState<{ id: string; name: string } | null>(null);
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   const filtered = useMemo(() => {
     const list = dedupeUsers(users);
@@ -71,9 +82,35 @@ export function AdminUsersTab({ users }: Props) {
     return {
       all: list.length,
       customer: list.filter((u) => u.role === "customer").length,
+      reception: list.filter((u) => u.role === "reception").length,
       admin: list.filter((u) => u.role === "admin").length,
     };
   }, [users]);
+
+  const changeRole = async (userId: string, next: string, password?: string) => {
+    if (!onRoleChange) return;
+    setError("");
+    setBusyId(userId);
+    try {
+      await onRoleChange(userId, next, password);
+      setPendingAdmin(null);
+      setConfirmPassword("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update role");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const requestRoleChange = (userId: string, next: string, displayName: string) => {
+    if (next === "admin") {
+      setPendingAdmin({ id: userId, name: displayName });
+      setConfirmPassword("");
+      setError("");
+      return;
+    }
+    void changeRole(userId, next);
+  };
 
   const field =
     "w-full px-3 py-2.5 rounded-xl border border-black/10 text-sm min-h-[44px] bg-white/70";
@@ -84,6 +121,10 @@ export function AdminUsersTab({ users }: Props) {
         Users
         <span className="text-soul-muted font-semibold text-sm ml-2">{filtered.length}</span>
       </h2>
+      <p className="text-sm text-soul-muted">
+        Set <span className="font-semibold text-black">reception</span> for floor staff (POS /
+        inventory / ICONIC / orders only — no profit or user admin).
+      </p>
 
       <GlassCard className="p-3 sm:p-4 space-y-3">
         <div className="flex flex-col sm:flex-row gap-2">
@@ -109,6 +150,7 @@ export function AdminUsersTab({ users }: Props) {
           >
             <option value="">All roles ({counts.all})</option>
             <option value="customer">Customer ({counts.customer})</option>
+            <option value="reception">Reception ({counts.reception})</option>
             <option value="admin">Admin ({counts.admin})</option>
           </select>
         </div>
@@ -117,6 +159,7 @@ export function AdminUsersTab({ users }: Props) {
             [
               { id: "", label: "All", count: counts.all },
               { id: "customer", label: "Customer", count: counts.customer },
+              { id: "reception", label: "Reception", count: counts.reception },
               { id: "admin", label: "Admin", count: counts.admin },
             ] as const
           ).map((r) => (
@@ -137,32 +180,91 @@ export function AdminUsersTab({ users }: Props) {
             </button>
           ))}
         </div>
+        {error && <p className="text-sm text-red-600">{error}</p>}
         <p className="text-[11px] text-soul-muted">
           Showing {pageItems.length ? (safePage - 1) * PAGE_SIZE + 1 : 0}–
           {(safePage - 1) * PAGE_SIZE + pageItems.length} · page {safePage}/{totalPages}
         </p>
       </GlassCard>
 
+      {pendingAdmin && (
+        <GlassCard className="p-4 sm:p-5 space-y-3 border border-amber-200/80 bg-amber-50/50">
+          <p className="text-sm font-semibold">
+            Promote <span className="font-black">{pendingAdmin.name}</span> to admin?
+          </p>
+          <p className="text-xs text-soul-muted">
+            Enter your owner password to confirm. Their other sessions will be signed out.
+          </p>
+          <input
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            placeholder="Your password"
+            autoComplete="current-password"
+            className={field}
+          />
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={!confirmPassword || busyId === pendingAdmin.id}
+              onClick={() => void changeRole(pendingAdmin.id, "admin", confirmPassword)}
+              className="btn-soul--dark rounded-full px-5 min-h-[44px] text-[10px] disabled:opacity-50"
+            >
+              Confirm promote
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPendingAdmin(null);
+                setConfirmPassword("");
+              }}
+              className="px-4 py-2 rounded-full text-[10px] font-bold uppercase border border-black/10 min-h-[44px]"
+            >
+              Cancel
+            </button>
+          </div>
+        </GlassCard>
+      )}
+
       <div className="space-y-2">
         {pageItems.map((u) => (
           <GlassCard
             key={u.id}
-            className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2"
+            className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
           >
             <div className="min-w-0 flex-1">
               <p className="font-semibold truncate">{u.full_name || "—"}</p>
               <p className="text-sm text-soul-muted break-all mt-0.5">{u.email}</p>
               <p className="text-[11px] text-soul-muted mt-1">Joined {formatDate(u.created_at)}</p>
             </div>
-            <span
-              className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full shrink-0 w-fit ${
-                u.role === "admin"
-                  ? "bg-black text-white"
-                  : "bg-neutral-100 text-soul-muted"
-              }`}
-            >
-              {u.role}
-            </span>
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <span
+                className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full w-fit ${roleBadgeClass(
+                  u.role
+                )}`}
+              >
+                {u.role}
+              </span>
+              {onRoleChange && (
+                <select
+                  value={u.role}
+                  disabled={busyId === u.id}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    if (next === u.role) return;
+                    requestRoleChange(u.id, next, u.full_name || u.email);
+                    // Keep select on current role until API succeeds (parent refreshes list).
+                    e.target.value = u.role;
+                  }}
+                  className="px-2.5 py-2 rounded-xl border border-black/10 text-xs font-semibold bg-white min-h-[40px]"
+                  aria-label={`Change role for ${u.full_name || u.email}`}
+                >
+                  <option value="customer">Customer</option>
+                  <option value="reception">Reception (floor)</option>
+                  <option value="admin">Admin (owner)</option>
+                </select>
+              )}
+            </div>
           </GlassCard>
         ))}
 

@@ -3,7 +3,8 @@
 Premium gym / athleisure storefront for **Myanmar (MMK)**, with:
 
 - Customer website (shop, bag, checkout, account)
-- Admin console (catalog, inventory, website orders, store POS, ICONIC partner, analytics)
+- Owner admin + separate Reception floor dashboard (POS workers cannot see profit / users)
+- Three separate logins: customer `/login`, admin `/admin/login`, reception `/reception/login`
 - Express API + PostgreSQL (Supabase)
 
 **Live stack:** Vercel (web) · Render (API) · Supabase (Postgres)
@@ -72,9 +73,21 @@ Premium gym / athleisure storefront for **Myanmar (MMK)**, with:
 - Register / login with **httpOnly** cookies (`accessToken` ~15m, `refreshToken` ~7d)
 - Passwords: **bcrypt** cost 12
 - Refresh rotation; refresh tokens stored as **SHA-256 hashes** in DB
-- Role: `customer` | `admin` (register never accepts client-controlled role)
+- Role: `customer` | `admin` | `reception` (register never accepts client-controlled role)
 
-### 2.3 Admin console (`/admin`)
+### 2.3 Three portals (separate logins)
+
+| Portal | Login URL | Who | Sees |
+|--------|-----------|-----|------|
+| **Customer** | `/login` | `customer` only | Shop, bag, account, orders |
+| **Admin** | `/admin/login` | `admin` only | Owner console + Floor/POS |
+| **Reception** | `/reception/login` | `reception` only | Floor dashboard only |
+
+Each login rejects the other roles. Middleware keeps each role on its portal (admins may also open `/reception` for POS).
+
+**Assign a worker:** Admin → Users → set role to **Reception (floor)**. They open `/reception/login`.
+
+#### Owner admin tabs
 
 | Tab | Purpose |
 |-----|---------|
@@ -85,7 +98,17 @@ Premium gym / athleisure storefront for **Myanmar (MMK)**, with:
 | ICONIC | Consignment transfers + **monthly sold reports** (idempotent per month) |
 | Products | CRUD, codes (e.g. `SO1pljk`), images, sale tags |
 | Orders | Website orders, pending badge **1 / 2 / 3…**, confirm payment, pack, ship, print |
-| Users | List / roles |
+| Users | List / set `customer` · `reception` · `admin` |
+
+#### Reception floor tabs
+
+| Tab | Purpose |
+|-----|---------|
+| Floor | Today’s store sales (count + MMK, no profit), pending web orders, low store stock |
+| POS | Same terminal as admin — charge, line/order discounts, print |
+| Orders | Pack / confirm payment / ship / print |
+| Inventory | Qty adjust & transfer — **cost column hidden** |
+| ICONIC | Transfers + monthly sold entry |
 
 **Reception alerts:** poll for new web orders, optional browser notify. **Auto-print defaults OFF** (enable explicitly on shared PCs).
 
@@ -190,6 +213,12 @@ Defense is layered so one failure does not open the whole shop.
 | Zod validation on writes | cart, orders, admin |
 | `requireAuth` (JWT access only; refresh type rejected) | `middleware/auth.js` |
 | `requireAdmin` = JWT claim **and** live `users.role` in DB | same (demotion is immediate) |
+| `requireStoreStaff` = live role `admin` \| `reception` (floor ops; no analytics) | same |
+| `cloverRole` HttpOnly cookie for Next page gates (`/admin`, `/reception`) | `auth-cookies.js` + `middleware.ts` |
+| `admin_audit_events` for role / payment / order / stock / POS / export | `audit.js` |
+| Promote-to-admin requires actor password; role change revokes target sessions | `admin.js` |
+| Logout + password change revoke **all** refresh tokens for that user | `auth.js` / `jwt.js` |
+| `CORS_VERCEL_PREVIEWS` ignored when `NODE_ENV=production` | `server.js` |
 | Generic 500 messages (no stack traces to clients) | `server.js` |
 | Upload: raster images only; **SVG blocked** (XSS) | `uploads/upload-storage.js` |
 | Upload static: `X-Content-Type-Options: nosniff` | `server.js` |
@@ -330,9 +359,10 @@ After deploy: open admin → Orders; place a test COD (Mandalay) and a test KBZP
 | Confirm KBZPay/card | Orders → **Confirm payment & pack** |
 | COD pack | Orders → **Start packaging** |
 | Cancel & restock | Set status **cancelled** (if stock was held) |
-| Store sale | Admin → **POS** → charge → print |
-| ICONIC month sold | Admin → **ICONIC** → one report per month only |
-| Sale % | Overview → sale discount setting |
+| Store sale | Reception or Admin → **POS** → charge → print |
+| ICONIC month sold | Reception or Admin → **ICONIC** → one report per month only |
+| Promote floor staff | Admin → Users → role **Reception** |
+| Sale % | Admin Overview → sale discount setting |
 | Thermal paper | POS paper selector (80mm XP-80C default) |
 
 ---

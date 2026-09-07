@@ -1,9 +1,10 @@
 "use client";
 
 /**
- * Admin orders list
- * -----------------
- * Recent website orders — start packaging, advance status, see payment method.
+ * Admin / floor orders
+ * -------------------
+ * Pack & ship for real-world delivery. Print anytime.
+ * Mark paid only when cash / KBZ / transfer actually lands.
  */
 
 import { useMemo, useState } from "react";
@@ -35,11 +36,15 @@ export type AdminOrder = {
   shipping_city?: string;
   shipping_state?: string;
   payment_method?: string | null;
+  payment_received?: boolean;
+  payment_received_at?: string | null;
 };
 
 type Props = {
   orders: AdminOrder[];
   onStatusChange: (orderId: string, status: string) => Promise<void>;
+  onPaymentChange?: (orderId: string, received: boolean) => Promise<void>;
+  onOrdersRefresh?: () => void;
 };
 
 function dedupeOrders(orders: AdminOrder[]) {
@@ -49,6 +54,10 @@ function dedupeOrders(orders: AdminOrder[]) {
     map.set(o.id, o);
   }
   return Array.from(map.values());
+}
+
+function isPaid(o: AdminOrder) {
+  return Boolean(o.payment_received || o.payment_received_at);
 }
 
 function formatDate(raw?: string) {
@@ -63,9 +72,15 @@ function formatDate(raw?: string) {
   });
 }
 
-export function AdminOrdersTab({ orders, onStatusChange }: Props) {
+export function AdminOrdersTab({
+  orders,
+  onStatusChange,
+  onPaymentChange,
+  onOrdersRefresh,
+}: Props) {
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("pending");
+  const [payFilter, setPayFilter] = useState<"all" | "unpaid" | "paid">("all");
   const [page, setPage] = useState(1);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [printId, setPrintId] = useState<string | null>(null);
@@ -79,13 +94,15 @@ export function AdminOrdersTab({ orders, onStatusChange }: Props) {
     const needle = q.trim().toLowerCase();
     return list.filter((o) => {
       if (status && o.status !== status) return false;
+      if (payFilter === "paid" && !isPaid(o)) return false;
+      if (payFilter === "unpaid" && isPaid(o)) return false;
       if (!needle) return true;
       const hay = `${o.id} ${o.email || ""} ${o.full_name || ""} ${o.shipping_name || ""} ${
         o.payment_method || ""
       }`.toLowerCase();
       return hay.includes(needle);
     });
-  }, [orders, q, status]);
+  }, [orders, q, status, payFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -95,10 +112,11 @@ export function AdminOrdersTab({ orders, onStatusChange }: Props) {
   }, [filtered, safePage]);
 
   const counts = useMemo(() => {
-    const c: Record<string, number> = {};
+    const c: Record<string, number> = { unpaid: 0 };
     for (const s of STATUSES) c[s] = 0;
     for (const o of dedupeOrders(orders)) {
       c[o.status] = (c[o.status] || 0) + 1;
+      if (!isPaid(o) && o.status !== "cancelled") c.unpaid += 1;
     }
     return c;
   }, [orders]);
@@ -107,6 +125,16 @@ export function AdminOrdersTab({ orders, onStatusChange }: Props) {
     setSavingId(id);
     try {
       await onStatusChange(id, next);
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const changePayment = async (id: string, received: boolean) => {
+    if (!onPaymentChange) return;
+    setSavingId(id);
+    try {
+      await onPaymentChange(id, received);
     } finally {
       setSavingId(null);
     }
@@ -124,6 +152,19 @@ export function AdminOrdersTab({ orders, onStatusChange }: Props) {
     }
   };
 
+  const saveCustomer = async (id: string) => {
+    setSavingId(id);
+    try {
+      await api(`/api/admin/orders/${id}/save-customer`, { method: "POST", json: {} });
+      onOrdersRefresh?.();
+      alert("Customer saved to CRM");
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Could not save customer");
+    } finally {
+      setSavingId(null);
+    }
+  };
+
   const field =
     "w-full px-3 py-2.5 rounded-xl border border-black/10 text-sm min-h-[44px] bg-white/70";
 
@@ -135,9 +176,10 @@ export function AdminOrdersTab({ orders, onStatusChange }: Props) {
             Orders
             <span className="text-soul-muted font-semibold text-sm ml-2">{filtered.length}</span>
           </h2>
-          <p className="text-xs text-soul-muted mt-1">
-            New website orders: <strong>awaiting payment</strong> (KBZPay/card) or{" "}
-            <strong>pending</strong> (COD) — confirm payment, then pack and ship.
+          <p className="text-xs text-soul-muted mt-1 max-w-2xl">
+            Print packing slips anytime. Pack and ship for delivery.{" "}
+            <strong>Mark paid</strong> only after real money arrives (COD cash, KBZ, etc.) —
+            printing does not mark paid.
           </p>
         </div>
       </div>
@@ -176,6 +218,47 @@ export function AdminOrdersTab({ orders, onStatusChange }: Props) {
           <button
             type="button"
             onClick={() => {
+              setPayFilter("all");
+              setPage(1);
+            }}
+            className={`text-[10px] font-bold uppercase px-2.5 py-1 rounded-full border ${
+              payFilter === "all" ? "bg-black text-white border-black" : "border-black/10 text-soul-muted"
+            }`}
+          >
+            Money: all
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setPayFilter("unpaid");
+              setPage(1);
+            }}
+            className={`text-[10px] font-bold uppercase px-2.5 py-1 rounded-full border ${
+              payFilter === "unpaid"
+                ? "bg-amber-700 text-white border-amber-700"
+                : "border-black/10 text-soul-muted"
+            }`}
+          >
+            Unpaid ({counts.unpaid || 0})
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setPayFilter("paid");
+              setPage(1);
+            }}
+            className={`text-[10px] font-bold uppercase px-2.5 py-1 rounded-full border ${
+              payFilter === "paid"
+                ? "bg-emerald-800 text-white border-emerald-800"
+                : "border-black/10 text-soul-muted"
+            }`}
+          >
+            Paid
+          </button>
+          <span className="w-px bg-black/10 mx-1 hidden sm:inline-block" aria-hidden />
+          <button
+            type="button"
+            onClick={() => {
               setStatus("");
               setPage(1);
             }}
@@ -183,7 +266,7 @@ export function AdminOrdersTab({ orders, onStatusChange }: Props) {
               !status ? "bg-black text-white border-black" : "border-black/10 text-soul-muted"
             }`}
           >
-            All
+            All status
           </button>
           {STATUSES.map((s) => (
             <button
@@ -203,13 +286,14 @@ export function AdminOrdersTab({ orders, onStatusChange }: Props) {
         </div>
       </GlassCard>
 
-      <div className="space-y-2">
+      <div className="space-y-3">
         {pageItems.map((o) => {
           const pay = PAYMENT_LABELS[o.payment_method || ""] || o.payment_method || "—";
           const place = [o.shipping_city, o.shipping_state].filter(Boolean).join(", ");
+          const paid = isPaid(o);
           return (
-            <GlassCard key={o.id} className="p-3 sm:p-4">
-              <div className="flex flex-col gap-3">
+            <GlassCard key={o.id} className="p-4 sm:p-5">
+              <div className="flex flex-col gap-4">
                 <div className="flex flex-col sm:flex-row sm:items-start gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold text-sm truncate">
@@ -221,80 +305,139 @@ export function AdminOrdersTab({ orders, onStatusChange }: Props) {
                       {o.shipping_phone && <span>{o.shipping_phone}</span>}
                       <span>{formatDate(o.created_at)}</span>
                     </p>
-                    <p className="text-xs mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
+                    <p className="text-xs mt-2 flex flex-wrap gap-2 items-center">
                       <span className="font-bold uppercase tracking-wide text-[10px]">{pay}</span>
                       {place && <span className="text-soul-muted">{place}</span>}
                       <span
-                        className={`uppercase tracking-wide text-[10px] font-bold ${
+                        className={`uppercase tracking-wide text-[10px] font-bold px-2 py-0.5 rounded-full ${
                           o.status === "awaiting_payment"
-                            ? "text-orange-700"
+                            ? "bg-orange-100 text-orange-800"
                             : o.status === "pending"
-                              ? "text-amber-800"
+                              ? "bg-amber-100 text-amber-900"
                               : o.status === "processing"
-                                ? "text-sky-800"
-                                : "text-soul-muted"
+                                ? "bg-sky-100 text-sky-900"
+                                : "bg-neutral-100 text-soul-muted"
                         }`}
                       >
                         {o.status === "awaiting_payment" ? "awaiting payment" : o.status}
                       </span>
+                      <span
+                        className={`uppercase tracking-wide text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          paid ? "bg-emerald-100 text-emerald-900" : "bg-red-50 text-red-800"
+                        }`}
+                      >
+                        {paid ? "money received" : "unpaid"}
+                      </span>
                     </p>
                   </div>
-                  <p className="font-bold text-sm sm:text-base shrink-0 tabular-nums">
+                  <p className="font-bold text-base sm:text-lg shrink-0 tabular-nums">
                     {formatMMK(Number(o.total_cents) || 0)}
                   </p>
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-                  {o.status === "awaiting_payment" && (
-                    <button
-                      type="button"
-                      disabled={savingId === o.id}
-                      onClick={() => changeStatus(o.id, "processing")}
-                      className="btn-soul--dark rounded-full px-4 min-h-[44px] text-[10px] disabled:opacity-50"
-                    >
-                      {savingId === o.id ? "Updating…" : "Confirm payment & pack"}
-                    </button>
-                  )}
-                  {o.status === "pending" && (
-                    <button
-                      type="button"
-                      disabled={savingId === o.id}
-                      onClick={() => changeStatus(o.id, "processing")}
-                      className="btn-soul--dark rounded-full px-4 min-h-[44px] text-[10px] disabled:opacity-50"
-                    >
-                      {savingId === o.id ? "Updating…" : "Start packaging"}
-                    </button>
-                  )}
-                  {o.status === "processing" && (
-                    <button
-                      type="button"
-                      disabled={savingId === o.id}
-                      onClick={() => changeStatus(o.id, "shipped")}
-                      className="btn-soul--dark rounded-full px-4 min-h-[44px] text-[10px] disabled:opacity-50"
-                    >
-                      Mark shipped
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    disabled={printId === o.id}
-                    onClick={() => void printOrder(o.id)}
-                    className="px-4 py-2 rounded-full text-[10px] font-bold uppercase border border-black/10 min-h-[44px] disabled:opacity-50"
-                  >
-                    {printId === o.id ? "Printing…" : "Print receipt"}
-                  </button>
-                  <select
-                    value={o.status}
-                    disabled={savingId === o.id}
-                    onChange={(e) => changeStatus(o.id, e.target.value)}
-                    className="w-full sm:w-40 text-xs px-3 py-2.5 rounded-xl border border-black/10 bg-white/60 min-h-[44px] capitalize disabled:opacity-50 sm:ml-auto"
-                  >
-                    {STATUSES.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </select>
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <div className="rounded-xl border border-black/10 bg-white/50 p-3 space-y-2">
+                    <p className="text-[10px] font-bold tracking-widest uppercase text-soul-muted">
+                      Fulfillment
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {o.status === "awaiting_payment" && (
+                        <p className="text-[11px] text-soul-muted w-full">
+                          Mark paid first (verifies money &amp; reserves stock), then pack.
+                        </p>
+                      )}
+                      {o.status === "pending" && (
+                        <button
+                          type="button"
+                          disabled={savingId === o.id}
+                          onClick={() => changeStatus(o.id, "processing")}
+                          className="btn-soul--dark rounded-full px-4 min-h-[44px] text-[10px] disabled:opacity-50"
+                        >
+                          Start packaging
+                        </button>
+                      )}
+                      {o.status === "processing" && (
+                        <button
+                          type="button"
+                          disabled={savingId === o.id}
+                          onClick={() => changeStatus(o.id, "shipped")}
+                          className="btn-soul--dark rounded-full px-4 min-h-[44px] text-[10px] disabled:opacity-50"
+                        >
+                          Mark shipped
+                        </button>
+                      )}
+                      {o.status === "shipped" && (
+                        <button
+                          type="button"
+                          disabled={savingId === o.id}
+                          onClick={() => changeStatus(o.id, "delivered")}
+                          className="btn-soul--dark rounded-full px-4 min-h-[44px] text-[10px] disabled:opacity-50"
+                        >
+                          Mark delivered
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        disabled={printId === o.id}
+                        onClick={() => void printOrder(o.id)}
+                        className="px-4 py-2 rounded-full text-[10px] font-bold uppercase border border-black/10 min-h-[44px] disabled:opacity-50"
+                      >
+                        {printId === o.id ? "Printing…" : "Print slip"}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={savingId === o.id}
+                        onClick={() => void saveCustomer(o.id)}
+                        className="px-4 py-2 rounded-full text-[10px] font-bold uppercase border border-black/10 min-h-[44px] disabled:opacity-50"
+                      >
+                        Save customer
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-black/10 bg-white/50 p-3 space-y-2">
+                    <p className="text-[10px] font-bold tracking-widest uppercase text-soul-muted">
+                      Money
+                    </p>
+                    <div className="flex flex-wrap gap-2 items-center">
+                      {onPaymentChange && !paid && o.status !== "cancelled" && (
+                        <button
+                          type="button"
+                          disabled={savingId === o.id}
+                          onClick={() => changePayment(o.id, true)}
+                          className="rounded-full px-4 min-h-[44px] text-[10px] font-bold uppercase tracking-wider bg-emerald-800 text-white disabled:opacity-50"
+                        >
+                          Mark paid
+                        </button>
+                      )}
+                      {onPaymentChange && paid && (
+                        <button
+                          type="button"
+                          disabled={savingId === o.id}
+                          onClick={() => {
+                            if (confirm("Clear paid flag? Only if money was marked by mistake.")) {
+                              void changePayment(o.id, false);
+                            }
+                          }}
+                          className="px-4 py-2 rounded-full text-[10px] font-bold uppercase border border-black/10 min-h-[44px] disabled:opacity-50"
+                        >
+                          Undo paid
+                        </button>
+                      )}
+                      <select
+                        value={o.status}
+                        disabled={savingId === o.id}
+                        onChange={(e) => changeStatus(o.id, e.target.value)}
+                        className="w-full sm:flex-1 text-xs px-3 py-2.5 rounded-xl border border-black/10 bg-white/60 min-h-[44px] capitalize disabled:opacity-50"
+                      >
+                        {STATUSES.map((s) => (
+                          <option key={s} value={s}>
+                            {s}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
                 </div>
               </div>
             </GlassCard>
@@ -303,7 +446,9 @@ export function AdminOrdersTab({ orders, onStatusChange }: Props) {
 
         {pageItems.length === 0 && (
           <GlassCard className="p-8 text-center text-sm text-soul-muted">
-            {q || status ? "No orders match these filters." : "No orders yet."}
+            {q || status || payFilter !== "all"
+              ? "No orders match these filters."
+              : "No orders yet."}
           </GlassCard>
         )}
       </div>

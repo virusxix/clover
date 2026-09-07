@@ -24,7 +24,7 @@ const field =
 type Item = StockRow & {
   locationId: string;
   price: number;
-  cost: number;
+  cost?: number;
   productId?: string;
 };
 
@@ -64,7 +64,7 @@ function groupItems(items: Item[]): ProductGroup[] {
   );
 }
 
-export function AdminInventoryTab() {
+export function AdminInventoryTab({ hideCosts = false }: { hideCosts?: boolean }) {
   const [items, setItems] = useState<Item[]>([]);
   const [catalog, setCatalog] = useState<CatalogVariant[]>([]);
   const [location, setLocation] = useState("");
@@ -337,7 +337,7 @@ export function AdminInventoryTab() {
                         <th className="py-2">Location</th>
                         <th className="py-2">Qty</th>
                         <th className="py-2">Price</th>
-                        <th className="px-4 py-2">Cost</th>
+                        {!hideCosts && <th className="px-4 py-2">Cost</th>}
                       </tr>
                     </thead>
                     <tbody>
@@ -357,7 +357,9 @@ export function AdminInventoryTab() {
                             {i.qty}
                           </td>
                           <td className="py-2">{formatMMK(i.price)}</td>
-                          <td className="px-4 py-2">{formatMMK(i.cost)}</td>
+                          {!hideCosts && (
+                            <td className="px-4 py-2">{formatMMK(i.cost ?? 0)}</td>
+                          )}
                         </tr>
                       ))}
                     </tbody>

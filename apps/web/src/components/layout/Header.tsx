@@ -18,7 +18,6 @@ const MAIN_NAV = [
 export function Header() {
   const { user, logout } = useAuth();
   const { itemCount } = useCart();
-  const isAdmin = user?.role === "admin";
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -59,11 +58,6 @@ export function Header() {
                 <Link href="/account" className="nav-link-pill hidden md:inline-flex max-w-[5rem] truncate">
                   {user.fullName.split(" ")[0]}
                 </Link>
-                {isAdmin && (
-                  <Link href="/admin" className="nav-link-pill hidden md:inline-flex">
-                    Admin
-                  </Link>
-                )}
                 <button
                   type="button"
                   onClick={() => logout()}
@@ -144,14 +138,6 @@ export function Header() {
                 >
                   My account
                 </Link>
-                {isAdmin && (
-                  <Link
-                    href="/admin"
-                    className="px-4 py-3.5 rounded-xl text-sm font-semibold hover:bg-black/5 min-h-[44px] flex items-center"
-                  >
-                    Admin dashboard
-                  </Link>
-                )}
                 <button
                   type="button"
                   onClick={() => {

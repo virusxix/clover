@@ -23,6 +23,7 @@ export async function createStoreSale({
   createdBy = null,
   paymentMethod = "cash",
   discount = 0,
+  customerId = null,
 }) {
   if (!items?.length) {
     const err = new Error("Sale needs at least one item");
@@ -94,9 +95,9 @@ export async function createStoreSale({
       .join(" · ");
 
     const { rows: saleRows } = await client.query(
-      `INSERT INTO store_sales (sold_at, total_cents, discount_cents, notes, created_by)
-       VALUES ($1, $2, $3, $4, $5) RETURNING id, sold_at, total_cents, discount_cents, notes`,
-      [soldAt, total, orderDiscount, saleNotes, createdBy]
+      `INSERT INTO store_sales (sold_at, total_cents, discount_cents, notes, created_by, customer_id)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, sold_at, total_cents, discount_cents, notes, customer_id`,
+      [soldAt, total, orderDiscount, saleNotes, createdBy, customerId || null]
     );
     const sale = saleRows[0];
 
@@ -143,6 +144,7 @@ export async function createStoreSale({
       total: sale.total_cents,
       notes: sale.notes,
       paymentMethod,
+      customerId: sale.customer_id || null,
       channel: "store",
       items: resolved.map((line) => ({
         ...line,

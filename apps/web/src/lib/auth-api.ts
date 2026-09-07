@@ -22,11 +22,17 @@ export async function refreshSession(): Promise<boolean> {
   }
 }
 
+export type AuthPortal = "customer" | "admin" | "reception";
+
 /** Email + password login. Sets cookies server-side; returns the user. */
-export async function loginRequest(email: string, password: string) {
+export async function loginRequest(
+  email: string,
+  password: string,
+  portal: AuthPortal = "customer"
+) {
   const res = await api<{ user: User }>("/api/auth/login", {
     method: "POST",
-    json: { email, password },
+    json: { email, password, portal },
     retries: 3,
   });
   return res.user;

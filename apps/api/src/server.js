@@ -18,6 +18,7 @@ import cartRoutes from "./routes/cart.js";
 import orderRoutes from "./routes/orders.js";
 import wishlistRoutes from "./routes/wishlist.js";
 import adminRoutes from "./routes/admin.js";
+import floorOrdersRoutes from "./routes/floor-orders.js";
 import adminOpsRoutes from "./routes/admin-ops.js";
 import adminUploadRoutes from "./routes/admin-upload.js";
 import { query } from "./db.js";
@@ -41,7 +42,10 @@ function corsOrigin(origin, callback) {
   if (!origin) return callback(null, true);
   const normalized = origin.replace(/\/$/, "");
   if (allowedOrigins().includes(normalized)) return callback(null, true);
-  if (process.env.CORS_VERCEL_PREVIEWS === "true") {
+  // Preview CORS is never allowed in production — even if the env flag is set by mistake.
+  const allowPreviews =
+    process.env.CORS_VERCEL_PREVIEWS === "true" && process.env.NODE_ENV !== "production";
+  if (allowPreviews) {
     try {
       const host = new URL(origin).hostname;
       if (host === "vercel.app" || host.endsWith(".vercel.app")) return callback(null, true);
@@ -147,6 +151,7 @@ app.use("/api/products", productRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/orders", checkoutLimiter, orderRoutes);
 app.use("/api/wishlist", wishlistRoutes);
+app.use("/api/admin", adminLimiter, floorOrdersRoutes);
 app.use("/api/admin", adminLimiter, adminRoutes);
 app.use("/api/admin/ops", adminLimiter, adminOpsRoutes);
 app.use("/api/admin/upload", uploadLimiter, adminUploadRoutes);
@@ -161,9 +166,13 @@ app.use((err, _req, res, _next) => {
 
 app.listen(PORT, () => {
   console.log(`THE CLOVER API running on http://localhost:${PORT}`);
-  if (process.env.CORS_VERCEL_PREVIEWS === "true") {
+  if (process.env.CORS_VERCEL_PREVIEWS === "true" && process.env.NODE_ENV === "production") {
     console.warn(
-      "[security] CORS_VERCEL_PREVIEWS=true — any *.vercel.app origin can use credentialed cookies. Disable in production."
+      "[security] CORS_VERCEL_PREVIEWS is ignored in production. Set CLIENT_URL / CLIENT_URLS only."
+    );
+  } else if (process.env.CORS_VERCEL_PREVIEWS === "true") {
+    console.warn(
+      "[security] CORS_VERCEL_PREVIEWS=true — any *.vercel.app origin can use credentialed cookies (non-prod only)."
     );
   }
 });

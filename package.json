@@ -10,6 +10,7 @@
     "dev:web": "npm run dev -w @soul/web",
     "db:schema": "node database/run-schema.js",
     "db:ops": "node database/run-ops-schema.js",
+    "db:rls": "node database/run-rls-schema.js",
     "db:seed": "node database/run-seed.js",
     "assets:optimize": "python scripts/optimize_assets.py"
   },

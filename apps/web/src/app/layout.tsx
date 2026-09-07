@@ -1,11 +1,9 @@
 import type { Metadata, Viewport } from "next";
-import { Suspense } from "react";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
 import { CartProvider } from "@/lib/cart-context";
-import { Header } from "@/components/layout/Header";
-import { Footer } from "@/components/layout/Footer";
+import { AppShell } from "@/components/layout/AppShell";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -38,11 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={`${inter.variable} font-sans min-h-screen flex flex-col overflow-x-hidden`}>
         <AuthProvider>
           <CartProvider>
-            <Suspense fallback={<div className="nav-spacer" aria-hidden />}>
-              <Header />
-            </Suspense>
-            <main className="flex-1 w-full min-w-0 overflow-x-hidden">{children}</main>
-            <Footer />
+            <AppShell>{children}</AppShell>
           </CartProvider>
         </AuthProvider>
       </body>

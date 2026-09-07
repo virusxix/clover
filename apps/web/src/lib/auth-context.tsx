@@ -22,12 +22,13 @@ import {
   logoutRequest,
   refreshSession,
   registerRequest,
+  type AuthPortal,
 } from "./auth-api";
 
 type AuthCtx = {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<User>;
+  login: (email: string, password: string, portal?: AuthPortal) => Promise<User>;
   register: (email: string, password: string, fullName: string) => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
@@ -69,8 +70,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => window.clearInterval(id);
   }, [refresh]);
 
-  const login = async (email: string, password: string) => {
-    const next = await loginRequest(email, password);
+  const login = async (email: string, password: string, portal: AuthPortal = "customer") => {
+    const next = await loginRequest(email, password, portal);
     setUser(next);
     return next;
   };

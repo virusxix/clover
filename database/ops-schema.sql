@@ -163,6 +163,69 @@ EXCEPTION
   WHEN undefined_object THEN NULL;
 END $$;
 
+-- Store floor workers (POS / inventory / orders) — not full admin
+DO $$ BEGIN
+  ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'reception';
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+  WHEN undefined_object THEN NULL;
+END $$;
+
+-- Real-world delivery: packing/shipping ≠ money received
+ALTER TABLE orders
+  ADD COLUMN IF NOT EXISTS payment_received_at TIMESTAMPTZ;
+
+-- Loyalty / CRM (walk-in + website)
+DO $$ BEGIN
+  CREATE TYPE customer_segment AS ENUM ('new', 'regular', 'loyal', 'vip');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+CREATE TABLE IF NOT EXISTS customers (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name        VARCHAR(120) NOT NULL,
+  phone       VARCHAR(32),
+  email       VARCHAR(255),
+  segment     customer_segment NOT NULL DEFAULT 'new',
+  notes       TEXT NOT NULL DEFAULT '',
+  user_id     UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers (phone) WHERE phone IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_customers_name ON customers (lower(name));
+CREATE INDEX IF NOT EXISTS idx_customers_segment ON customers (segment);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_user
+  ON customers (user_id) WHERE user_id IS NOT NULL;
+
+ALTER TABLE store_sales
+  ADD COLUMN IF NOT EXISTS customer_id UUID REFERENCES customers(id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS idx_store_sales_customer ON store_sales (customer_id)
+  WHERE customer_id IS NOT NULL;
+
+ALTER TABLE orders
+  ADD COLUMN IF NOT EXISTS customer_id UUID REFERENCES customers(id) ON DELETE SET NULL;
+
+-- Privileged action audit (role changes, payments, order status, etc.)
+CREATE TABLE IF NOT EXISTS admin_audit_events (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  actor_id     UUID REFERENCES users(id) ON DELETE SET NULL,
+  action       VARCHAR(64) NOT NULL,
+  target_type  VARCHAR(64) NOT NULL DEFAULT '',
+  target_id    VARCHAR(64),
+  meta         JSONB NOT NULL DEFAULT '{}',
+  ip           VARCHAR(64),
+  user_agent   TEXT,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_created ON admin_audit_events (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_actor ON admin_audit_events (actor_id);
+CREATE INDEX IF NOT EXISTS idx_audit_action ON admin_audit_events (action);
+
 -- Default cost ~45% of sell price where unset (edit in admin later)
 UPDATE product_variants
 SET cost_cents = GREATEST(0, ROUND(price_cents * 0.45))

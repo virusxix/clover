@@ -67,6 +67,12 @@ export async function revokeRefreshToken(refreshToken) {
   ]);
 }
 
+/** Kill every refresh session for a user (password change, demotion, logout-all). */
+export async function revokeAllRefreshTokens(userId) {
+  if (!userId) return;
+  await query(`DELETE FROM refresh_tokens WHERE user_id = $1`, [userId]);
+}
+
 /**
  * True only if the hash exists and is not expired.
  * Fail closed: callers must catch DB errors and treat as invalid.

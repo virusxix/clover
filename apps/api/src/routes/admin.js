@@ -16,6 +16,10 @@ import {
   resolveProductCode,
   describeProductCode,
 } from "../catalog/product-code.js";
+import { revokeAllRefreshTokens } from "../utils/jwt.js";
+import { comparePassword } from "../utils/password.js";
+import { getUserById } from "../auth-data.js";
+import { auditFromReq } from "../audit.js";
 
 const router = Router();
 router.use(requireAuth, requireAdmin);
@@ -48,8 +52,41 @@ router.patch("/settings", async (req, res) => {
     })
     .safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  const before = await getSaleDiscountPercent();
   const saleDiscountPercent = await setSaleDiscountPercent(parsed.data.saleDiscountPercent);
+  await auditFromReq(req, "settings_update", "app_settings", "1", {
+    from: before,
+    to: saleDiscountPercent,
+  });
   res.json({ saleDiscountPercent });
+});
+
+/** GET /api/admin/audit-events — privileged action log (admin only) */
+router.get("/audit-events", async (req, res) => {
+  const limit = Math.min(200, Math.max(1, parseInt(String(req.query.limit || "50"), 10) || 50));
+  const { rows } = await query(
+    `SELECT e.id, e.action, e.target_type, e.target_id, e.meta, e.ip, e.created_at,
+            u.email AS actor_email, u.full_name AS actor_name, u.role AS actor_role
+     FROM admin_audit_events e
+     LEFT JOIN users u ON u.id = e.actor_id
+     ORDER BY e.created_at DESC
+     LIMIT $1`,
+    [limit]
+  );
+  res.json({
+    events: rows.map((r) => ({
+      id: r.id,
+      action: r.action,
+      targetType: r.target_type,
+      targetId: r.target_id,
+      meta: r.meta,
+      ip: r.ip,
+      createdAt: r.created_at,
+      actorEmail: r.actor_email,
+      actorName: r.actor_name,
+      actorRole: r.actor_role,
+    })),
+  });
 });
 
 /** GET /api/admin/dashboard */
@@ -432,158 +469,77 @@ router.post("/products/:id/variants", async (req, res) => {
   res.status(201).json({ variant: rows[0] });
 });
 
-/** GET /api/admin/orders */
-router.get("/orders", async (_req, res) => {
-  const { rows } = await query(
-    `SELECT o.*, u.email, u.full_name
-     FROM orders o JOIN users u ON u.id = o.user_id
-     ORDER BY o.created_at DESC LIMIT 100`
-  );
-  res.json({ orders: rows });
-});
-
-/**
- * GET /api/admin/orders/pending-count
- * Badge for admin Orders tab — website orders waiting to be packaged.
- */
-router.get("/orders/pending-count", async (_req, res) => {
-  try {
-    const { rows } = await query(
-      `SELECT COUNT(*)::int AS count FROM orders
-       WHERE status IN ('pending', 'awaiting_payment')`
-    );
-    res.json({ count: rows[0]?.count ?? 0 });
-  } catch (err) {
-    console.error("[admin/orders/pending-count]", err);
-    res.status(500).json({ error: "Failed to count pending orders" });
-  }
-});
-
-/**
- * GET /api/admin/orders/feed?since=ISO
- * Reception poll — new website orders since timestamp (default last 15 min).
- */
-router.get("/orders/feed", async (req, res) => {
-  const sinceRaw = typeof req.query.since === "string" ? req.query.since : "";
-  const since = sinceRaw && !Number.isNaN(Date.parse(sinceRaw))
-    ? new Date(sinceRaw)
-    : new Date(Date.now() - 15 * 60 * 1000);
-
-  try {
-    const { rows } = await query(
-      `SELECT o.id, o.status, o.total_cents, o.payment_method, o.shipping_name,
-              o.shipping_phone, o.shipping_city, o.shipping_state, o.created_at,
-              u.email, u.full_name
-       FROM orders o
-       JOIN users u ON u.id = o.user_id
-       WHERE o.created_at > $1
-       ORDER BY o.created_at ASC
-       LIMIT 50`,
-      [since.toISOString()]
-    );
-    res.json({
-      serverTime: new Date().toISOString(),
-      orders: rows.map((o) => ({
-        id: o.id,
-        status: o.status,
-        totalCents: o.total_cents,
-        paymentMethod: o.payment_method,
-        shippingName: o.shipping_name,
-        shippingPhone: o.shipping_phone,
-        city: o.shipping_city,
-        state: o.shipping_state,
-        email: o.email,
-        fullName: o.full_name,
-        createdAt: o.created_at,
-      })),
-    });
-  } catch (err) {
-    console.error("[admin/orders/feed]", err);
-    res.status(500).json({ error: "Failed to load order feed" });
-  }
-});
-
-/**
- * GET /api/admin/orders/:id/receipt — print-ready payload for XP-80C
- */
-router.get("/orders/:id/receipt", async (req, res) => {
-  try {
-    const { rows: orders } = await query(
-      `SELECT o.*, u.email, u.full_name
-       FROM orders o JOIN users u ON u.id = o.user_id
-       WHERE o.id = $1`,
-      [req.params.id]
-    );
-    if (!orders.length) return res.status(404).json({ error: "Order not found" });
-
-    const o = orders[0];
-    const { rows: items } = await query(
-      `SELECT product_name, variant_name, size, quantity, unit_price_cents
-       FROM order_items WHERE order_id = $1 ORDER BY product_name`,
-      [o.id]
-    );
-
-    res.json({
-      saleId: o.id,
-      soldAt: o.created_at,
-      total: o.total_cents,
-      shippingCents: o.shipping_cents || 0,
-      taxCents: o.tax_cents || 0,
-      paymentMethod: o.payment_method || "card",
-      channel: "website",
-      notes: "",
-      customerName: o.shipping_name || o.full_name || "",
-      customerPhone: o.shipping_phone || "",
-      customerAddress: [o.shipping_line1, o.shipping_line2, o.shipping_city, o.shipping_state]
-        .filter(Boolean)
-        .join(", "),
-      items: items.map((i) => ({
-        productName: i.product_name,
-        productCode: null,
-        colorName: i.variant_name,
-        size: i.size,
-        quantity: i.quantity,
-        unitPrice: i.unit_price_cents,
-        lineTotal: i.unit_price_cents * i.quantity,
-      })),
-    });
-  } catch (err) {
-    console.error("[admin/orders/:id/receipt]", err);
-    res.status(500).json({ error: "Failed to load receipt" });
-  }
-});
-
-router.patch("/orders/:id/status", async (req, res) => {
-  try {
-    const status = z
-      .enum([
-        "awaiting_payment",
-        "pending",
-        "processing",
-        "shipped",
-        "delivered",
-        "cancelled",
-      ])
-      .parse(req.body.status);
-
-    const { updateOrderStatus } = await import("../orders/order-status-service.js");
-    const order = await updateOrderStatus(req.params.id, status, {
-      adminUserId: req.user?.id || null,
-    });
-    res.json({ order });
-  } catch (err) {
-    const code = err.status || (err.name === "ZodError" ? 400 : 500);
-    if (code >= 500) console.error("[admin/orders/:id/status]", err);
-    res.status(code).json({ error: err.message || "Failed to update status" });
-  }
-});
-
 /** GET /api/admin/users */
 router.get("/users", async (_req, res) => {
   const { rows } = await query(
     `SELECT id, email, full_name, role, created_at FROM users ORDER BY created_at DESC`
   );
   res.json({ users: rows });
+});
+
+/** PATCH /api/admin/users/:id/role — assign customer | reception | admin */
+router.patch("/users/:id/role", async (req, res) => {
+  try {
+    const parsed = z
+      .object({
+        role: z.enum(["customer", "reception", "admin"]),
+        /** Required when promoting anyone to admin */
+        confirmPassword: z.string().min(1).optional(),
+      })
+      .parse(req.body);
+
+    const { role, confirmPassword } = parsed;
+    if (req.params.id === req.user.id && role !== "admin") {
+      return res.status(400).json({ error: "You cannot remove your own admin role" });
+    }
+
+    if (role === "admin") {
+      if (!confirmPassword) {
+        return res.status(400).json({
+          error: "Confirm your password to promote someone to admin",
+          code: "CONFIRM_PASSWORD_REQUIRED",
+        });
+      }
+      const actor = await getUserById(req.user.id, { withPassword: true });
+      if (!actor?.password_hash) {
+        return res.status(503).json({ error: "Could not verify your password" });
+      }
+      const ok = await comparePassword(confirmPassword, actor.password_hash);
+      if (!ok) {
+        return res.status(401).json({ error: "Password incorrect" });
+      }
+    }
+
+    const { rows: before } = await query(`SELECT id, role FROM users WHERE id = $1`, [
+      req.params.id,
+    ]);
+    if (!before.length) return res.status(404).json({ error: "User not found" });
+
+    const { rows } = await query(
+      `UPDATE users SET role = $2::user_role, updated_at = NOW()
+       WHERE id = $1
+       RETURNING id, email, full_name, role, created_at`,
+      [req.params.id, role]
+    );
+
+    // Any role change invalidates their existing sessions (forces fresh JWT + role cookie).
+    try {
+      await revokeAllRefreshTokens(req.params.id);
+    } catch (err) {
+      console.error("[admin/users/:id/role] revoke sessions", err.message);
+    }
+
+    await auditFromReq(req, "user_role_change", "user", req.params.id, {
+      from: before[0].role,
+      to: role,
+    });
+
+    res.json({ user: rows[0] });
+  } catch (err) {
+    const code = err.status || (err.name === "ZodError" ? 400 : 500);
+    if (code >= 500) console.error("[admin/users/:id/role]", err);
+    res.status(code).json({ error: err.message || "Failed to update role" });
+  }
 });
 
 export default router;

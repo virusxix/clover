@@ -34,6 +34,9 @@ export type ReceiptData = {
   discount?: number;
   notes?: string;
   paymentMethod?: string;
+  /** Website orders: true only after real money marked received */
+  paymentReceived?: boolean;
+  paymentReceivedAt?: string | null;
   items: ReceiptItem[];
   customerName?: string;
   customerPhone?: string;
@@ -199,6 +202,12 @@ export function PosReceipt({ receipt, className = "" }: Props) {
           <Row label={isWeb ? "Order #" : "Receipt #"} value={no} />
           <Row label="Date" value={new Date(receipt.soldAt).toLocaleString()} />
           <Row label="Payment" value={pay} />
+          {isWeb && (
+            <Row
+              label="Money"
+              value={receipt.paymentReceived ? "RECEIVED" : "UNPAID — collect on delivery"}
+            />
+          )}
           <Row label={unitsLabel(units)} value={String(units)} />
           {isWeb && <Row label="Channel" value="Website" />}
           {!isWeb && <Row label="Channel" value="Store POS" />}
@@ -632,6 +641,9 @@ function buildWebsitePrintHtml(receipt: ReceiptData, paperMm: PaperWidthMm) {
     <div class="row"><span class="k">Order #</span><span class="v">${no}</span></div>
     <div class="row"><span class="k">Placed</span><span class="v">${escapeHtml(when)}</span></div>
     <div class="row"><span class="k">Pay</span><span class="v">${escapeHtml(pay)}</span></div>
+    <div class="row"><span class="k">Money</span><span class="v">${
+      receipt.paymentReceived ? "RECEIVED" : "UNPAID — collect on delivery"
+    }</span></div>
     <div class="row"><span class="k">Units</span><span class="v">${units}</span></div>
   </div>
 

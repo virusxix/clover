@@ -37,7 +37,8 @@ export default function AccountPage() {
       method: "PATCH",
       json: { currentPassword: fd.get("current"), newPassword: fd.get("new") },
     });
-    setMsg("Password updated");
+    await refresh();
+    setMsg("Password updated — other devices were signed out");
     form.reset();
   };
 

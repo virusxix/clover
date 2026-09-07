@@ -8,7 +8,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { query } from "../db.js";
-import { requireAuth, requireAdmin } from "../middleware/auth.js";
+import { requireAuth, requireAdmin, requireStoreStaff } from "../middleware/auth.js";
 import { toDisplayAmount } from "../currency.js";
 import { listInventory, adjustStock, transferStock } from "../inventory/stock-service.js";
 import { getPool } from "../pg-pool.js";
@@ -29,14 +29,25 @@ import {
   getMarketInsights,
 } from "../analytics/analytics-service.js";
 import { toCsv, csvResponse } from "../export/csv-export.js";
+import {
+  listCustomers,
+  createCustomer,
+  updateCustomer,
+} from "../customers/customer-service.js";
+import { auditFromReq } from "../audit.js";
 
 const router = Router();
-router.use(requireAuth, requireAdmin);
+// Floor ops: admin + reception. Analytics/export re-check admin below.
+router.use(requireAuth, requireStoreStaff);
 
 const SIZES = ["XS", "S", "M", "L", "XL"];
 
+function hideCosts(role) {
+  return role === "reception";
+}
+
 /** GET /api/admin/ops/variants — catalog variants for admin pickers (no UUID typing) */
-router.get("/variants", async (_req, res) => {
+router.get("/variants", async (req, res) => {
   try {
     const { rows } = await query(
       `SELECT v.id AS variant_id, p.name AS product_name, p.product_code,
@@ -46,15 +57,20 @@ router.get("/variants", async (_req, res) => {
        ORDER BY p.name, v.color_name`
     );
     res.json({
-      variants: rows.map((r) => ({
-        variantId: r.variant_id,
-        productName: r.product_name,
-        productCode: r.product_code,
-        colorName: r.color_name,
-        price: toDisplayAmount(r.price_cents),
-        cost: toDisplayAmount(r.cost_cents),
-        sizes: SIZES,
-      })),
+      variants: rows.map((r) => {
+        const base = {
+          variantId: r.variant_id,
+          productName: r.product_name,
+          productCode: r.product_code,
+          colorName: r.color_name,
+          price: toDisplayAmount(r.price_cents),
+          sizes: SIZES,
+        };
+        if (!hideCosts(req.user?.role)) {
+          base.cost = toDisplayAmount(r.cost_cents);
+        }
+        return base;
+      }),
     });
   } catch (err) {
     console.error("[ops/variants]", err);
@@ -72,20 +88,25 @@ router.get("/inventory", async (req, res) => {
       q: req.query.q || "",
     });
     res.json({
-      items: rows.map((r) => ({
-        variantId: r.variant_id,
-        productId: r.product_id,
-        productName: r.product_name,
-        productCode: r.product_code,
-        slug: r.slug,
-        colorName: r.color_name,
-        size: r.size,
-        locationId: r.location_id,
-        qty: r.qty,
-        price: toDisplayAmount(r.price_cents),
-        cost: toDisplayAmount(r.cost_cents),
-        updatedAt: r.updated_at,
-      })),
+      items: rows.map((r) => {
+        const base = {
+          variantId: r.variant_id,
+          productId: r.product_id,
+          productName: r.product_name,
+          productCode: r.product_code,
+          slug: r.slug,
+          colorName: r.color_name,
+          size: r.size,
+          locationId: r.location_id,
+          qty: r.qty,
+          price: toDisplayAmount(r.price_cents),
+          updatedAt: r.updated_at,
+        };
+        if (!hideCosts(req.user?.role)) {
+          base.cost = toDisplayAmount(r.cost_cents);
+        }
+        return base;
+      }),
     });
   } catch (err) {
     console.error("[ops/inventory]", err);
@@ -123,6 +144,11 @@ router.post("/inventory/adjust", async (req, res) => {
       fromLocation: parsed.data.delta < 0 ? parsed.data.locationId : null,
     });
     await client.query("COMMIT");
+    await auditFromReq(req, "inventory_adjust", "variant", parsed.data.variantId, {
+      locationId: parsed.data.locationId,
+      size: parsed.data.size,
+      delta: parsed.data.delta,
+    });
     res.json({ ok: true });
   } catch (err) {
     await client.query("ROLLBACK").catch(() => {});
@@ -164,6 +190,12 @@ router.post("/inventory/transfer", async (req, res) => {
       createdBy: req.user.id,
     });
     await client.query("COMMIT");
+    await auditFromReq(req, "inventory_transfer", "variant", parsed.data.variantId, {
+      size: parsed.data.size,
+      qty: parsed.data.qty,
+      from: parsed.data.fromLocation,
+      to: parsed.data.toLocation,
+    });
     res.json({ ok: true });
   } catch (err) {
     await client.query("ROLLBACK").catch(() => {});
@@ -234,6 +266,7 @@ router.post("/store-sales", async (req, res) => {
       notes: z.string().max(500).optional(),
       soldAt: z.string().datetime().optional(),
       paymentMethod: z.enum(["cash", "kbzpay", "mmqr", "card"]).default("cash"),
+      customerId: z.string().uuid().optional().nullable(),
       /** Seller discount in MMK (whole units), applied to the cart subtotal */
       discount: z.coerce.number().int().min(0).max(50_000_000).optional().default(0),
       items: z
@@ -263,8 +296,14 @@ router.post("/store-sales", async (req, res) => {
       notes: parsed.data.notes || "",
       paymentMethod: parsed.data.paymentMethod,
       discount: parsed.data.discount,
+      customerId: parsed.data.customerId || null,
       soldAt: parsed.data.soldAt ? new Date(parsed.data.soldAt) : new Date(),
       createdBy: req.user.id,
+    });
+    await auditFromReq(req, "store_sale", "store_sale", result.saleId, {
+      total: result.total,
+      paymentMethod: result.paymentMethod,
+      itemCount: result.items?.length || 0,
     });
     res.status(201).json({
       saleId: result.saleId,
@@ -275,6 +314,7 @@ router.post("/store-sales", async (req, res) => {
       total: toDisplayAmount(result.total),
       notes: result.notes,
       paymentMethod: result.paymentMethod,
+      customerId: result.customerId || null,
       channel: "store",
       items: result.items.map((i) => ({
         variantId: i.variantId,
@@ -343,6 +383,9 @@ router.post("/iconic/transfers", async (req, res) => {
       ...parsed.data,
       createdBy: req.user.id,
     });
+    await auditFromReq(req, "iconic_transfer", "iconic_transfer", result.transferId, {
+      itemCount: parsed.data.items.length,
+    });
     res.status(201).json(result);
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message || "Transfer failed" });
@@ -391,15 +434,123 @@ router.post("/iconic/reports", async (req, res) => {
       ...parsed.data,
       createdBy: req.user.id,
     });
+    await auditFromReq(req, "iconic_report", "iconic_sales_report", result.reportId, {
+      reportMonth: parsed.data.reportMonth,
+      itemCount: parsed.data.items.length,
+    });
     res.status(201).json(result);
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message || "Report failed" });
   }
 });
 
-// ─── Analytics ────────────────────────────────────────────────
+// ─── Analytics (owner only — profit / P&L / exports) ──────────
 
-router.get("/analytics/summary", async (req, res) => {
+// ─── Customers (loyalty CRM) ──────────────────────────────────
+
+router.get("/customers", async (req, res) => {
+  try {
+    const rows = await listCustomers(
+      { query },
+      {
+        q: typeof req.query.q === "string" ? req.query.q : "",
+        segment: typeof req.query.segment === "string" ? req.query.segment : "",
+      }
+    );
+    res.json({
+      customers: rows.map((c) => ({
+        id: c.id,
+        name: c.name,
+        phone: c.phone,
+        email: c.email,
+        segment: c.segment,
+        notes: c.notes,
+        userId: c.user_id,
+        orderCount: c.order_count || 0,
+        storeSaleCount: c.store_sale_count || 0,
+        createdAt: c.created_at,
+        updatedAt: c.updated_at,
+      })),
+    });
+  } catch (err) {
+    console.error("[ops/customers]", err);
+    res.status(500).json({ error: "Failed to load customers" });
+  }
+});
+
+router.post("/customers", async (req, res) => {
+  const parsed = z
+    .object({
+      name: z.string().min(1).max(120),
+      phone: z.string().max(32).optional().nullable(),
+      email: z.string().email().max(255).optional().nullable().or(z.literal("")),
+      segment: z.enum(["new", "regular", "loyal", "vip"]).optional(),
+      notes: z.string().max(2000).optional(),
+    })
+    .safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "Invalid customer", details: parsed.error.flatten() });
+  }
+  try {
+    const c = await createCustomer({ query }, {
+      ...parsed.data,
+      email: parsed.data.email || null,
+    });
+    await auditFromReq(req, "customer_create", "customer", c.id, {
+      name: c.name,
+      segment: c.segment,
+    });
+    res.status(201).json({
+      customer: {
+        id: c.id,
+        name: c.name,
+        phone: c.phone,
+        email: c.email,
+        segment: c.segment,
+        notes: c.notes,
+      },
+    });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message || "Failed to create customer" });
+  }
+});
+
+router.patch("/customers/:id", async (req, res) => {
+  const parsed = z
+    .object({
+      name: z.string().min(1).max(120).optional(),
+      phone: z.string().max(32).optional().nullable(),
+      email: z.string().email().max(255).optional().nullable().or(z.literal("")),
+      segment: z.enum(["new", "regular", "loyal", "vip"]).optional(),
+      notes: z.string().max(2000).optional(),
+    })
+    .safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "Invalid customer update", details: parsed.error.flatten() });
+  }
+  try {
+    const data = { ...parsed.data };
+    if (data.email === "") data.email = null;
+    const c = await updateCustomer({ query }, req.params.id, data);
+    await auditFromReq(req, "customer_update", "customer", c.id, {
+      fields: Object.keys(parsed.data),
+    });
+    res.json({
+      customer: {
+        id: c.id,
+        name: c.name,
+        phone: c.phone,
+        email: c.email,
+        segment: c.segment,
+        notes: c.notes,
+      },
+    });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message || "Failed to update customer" });
+  }
+});
+
+router.get("/analytics/summary", requireAdmin, async (req, res) => {
   const period = String(req.query.period || "monthly");
   if (!["daily", "weekly", "monthly", "yearly", "overall"].includes(period)) {
     return res.status(400).json({ error: "Invalid period" });
@@ -413,7 +564,7 @@ router.get("/analytics/summary", async (req, res) => {
   }
 });
 
-router.get("/analytics/profit-loss", async (_req, res) => {
+router.get("/analytics/profit-loss", requireAdmin, async (_req, res) => {
   try {
     const years = await getProfitLoss({ query });
     res.json({ years });
@@ -423,7 +574,7 @@ router.get("/analytics/profit-loss", async (_req, res) => {
   }
 });
 
-router.get("/analytics/market", async (_req, res) => {
+router.get("/analytics/market", requireAdmin, async (_req, res) => {
   try {
     const insights = await getMarketInsights({ query });
     res.json(insights);
@@ -435,9 +586,10 @@ router.get("/analytics/market", async (_req, res) => {
 
 // ─── Excel CSV export ─────────────────────────────────────────
 
-router.get("/export/:kind", async (req, res) => {
+router.get("/export/:kind", requireAdmin, async (req, res) => {
   const kind = req.params.kind;
   try {
+    await auditFromReq(req, "export", "export", kind, { kind });
     if (kind === "inventory") {
       const rows = await listInventory({ query }, {});
       const csv = toCsv(

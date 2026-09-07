@@ -8,7 +8,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { hashPassword, comparePassword } from "../utils/password.js";
-import { revokeRefreshToken } from "../utils/jwt.js";
+import { revokeRefreshToken, revokeAllRefreshTokens, verifyToken } from "../utils/jwt.js";
 import { requireAuth } from "../middleware/auth.js";
 import {
   verifyLogin,
@@ -19,8 +19,9 @@ import {
   checkDb,
 } from "../auth-data.js";
 import { query } from "../db.js";
-import { clearAuthCookies, readRefreshToken } from "../auth-cookies.js";
+import { clearAuthCookies, readRefreshToken, setRoleCookie } from "../auth-cookies.js";
 import { createSession, rotateSession } from "../auth-session.js";
+import { writeAudit } from "../audit.js";
 
 const router = Router();
 
@@ -33,6 +34,8 @@ const registerSchema = z.object({
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string(),
+  /** Which portal is signing in — role must match */
+  portal: z.enum(["customer", "admin", "reception"]).optional().default("customer"),
 });
 
 const profileSchema = z.object({
@@ -65,7 +68,7 @@ router.post("/register", async (req, res) => {
   }
 });
 
-/** POST /api/auth/login — verify password + session cookies */
+/** POST /api/auth/login — verify password + session cookies (portal-scoped) */
 router.post("/login", async (req, res) => {
   const parsed = loginSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -77,6 +80,41 @@ router.post("/login", async (req, res) => {
     if (!user) {
       return res.status(401).json({ error: "Invalid email or password" });
     }
+
+    const portal = parsed.data.portal || "customer";
+
+    if (portal === "customer") {
+      if (user.role !== "customer") {
+        if (user.role === "admin") {
+          return res.status(403).json({
+            error: "Owners must sign in at the Admin login.",
+            code: "USE_ADMIN_LOGIN",
+          });
+        }
+        if (user.role === "reception") {
+          return res.status(403).json({
+            error: "Reception staff must sign in at the Reception login.",
+            code: "USE_RECEPTION_LOGIN",
+          });
+        }
+        return res.status(403).json({ error: "This login is for customers only.", code: "WRONG_PORTAL" });
+      }
+    } else if (portal === "admin") {
+      if (user.role !== "admin") {
+        return res.status(403).json({
+          error: "This login is for owners only. Use the customer or reception login.",
+          code: "WRONG_PORTAL",
+        });
+      }
+    } else if (portal === "reception") {
+      if (user.role !== "reception") {
+        return res.status(403).json({
+          error: "This login is for reception staff only.",
+          code: "WRONG_PORTAL",
+        });
+      }
+    }
+
     res.json(await createSession(res, user));
   } catch (err) {
     console.error("[auth/login]", err);
@@ -99,25 +137,35 @@ router.post("/refresh", async (req, res) => {
   }
 });
 
-/** POST /api/auth/logout — revoke refresh hash + clear cookies */
+/** POST /api/auth/logout — revoke all refresh sessions for this user + clear cookies */
 router.post("/logout", async (req, res) => {
   const refreshToken = readRefreshToken(req);
   if (refreshToken) {
     try {
-      await revokeRefreshToken(refreshToken);
+      const payload = verifyToken(refreshToken);
+      if (payload?.sub) {
+        await revokeAllRefreshTokens(payload.sub);
+      } else {
+        await revokeRefreshToken(refreshToken);
+      }
     } catch {
-      // Best effort — still clear cookies below.
+      try {
+        await revokeRefreshToken(refreshToken);
+      } catch {
+        /* still clear cookies */
+      }
     }
   }
   clearAuthCookies(res);
   res.json({ ok: true });
 });
 
-/** GET /api/auth/me — current user from access cookie */
+/** GET /api/auth/me — current user from access cookie; refresh role cookie from DB */
 router.get("/me", requireAuth, async (req, res) => {
   try {
     const user = await getUserById(req.user.id);
     if (!user) return res.status(404).json({ error: "User not found" });
+    setRoleCookie(res, user.role);
     res.json(toUserResponse(user));
   } catch (err) {
     res.status(500).json({ error: authErrorMessage(err) });
@@ -180,7 +228,24 @@ router.patch("/password", requireAuth, async (req, res) => {
     } else {
       user.password_hash = hash;
     }
-    res.json({ ok: true });
+
+    // Kill every other session; re-issue cookies for this browser only.
+    try {
+      await revokeAllRefreshTokens(req.user.id);
+    } catch {
+      /* best effort */
+    }
+    const fresh = await getUserById(req.user.id);
+    await writeAudit({
+      actorId: req.user.id,
+      action: "password_change",
+      targetType: "user",
+      targetId: req.user.id,
+      req,
+    });
+    const session = await createSession(res, fresh || user);
+    // Never put JWTs in the JSON body for password change (proxy may forward raw).
+    res.json({ ok: true, user: session.user });
   } catch (err) {
     res.status(500).json({ error: authErrorMessage(err) });
   }

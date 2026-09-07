@@ -1,9 +1,7 @@
 "use client";
 
 /**
- * Login / register form
- * ---------------------
- * One job: collect credentials and call auth context.
+ * Customer login / register — shoppers only.
  */
 
 import { FormEvent, useEffect, useState } from "react";
@@ -12,14 +10,26 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { BrandLogo } from "@/components/layout/BrandLogo";
 import { useAuth } from "@/lib/auth-context";
+import { homePathForRole, isCustomer } from "@/lib/roles";
 
 /** Only allow same-origin relative paths for ?next= redirects. */
 function safeNextPath(raw: string | null): string | null {
   if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return null;
+  // Never bounce customers into staff portals via ?next=
+  if (raw === "/admin" || raw.startsWith("/admin/") || raw === "/reception" || raw.startsWith("/reception/")) {
+    return "/account";
+  }
   return raw;
 }
 
-/** Wake the Render API early (cold start) so login is less likely to time out. */
+function resolvePostLoginPath(role: string | undefined, nextPath: string | null) {
+  if (role !== "customer") {
+    if (role === "admin") return "/admin";
+    if (role === "reception") return "/reception";
+  }
+  return nextPath || homePathForRole(role);
+}
+
 async function wakeApi() {
   for (let i = 0; i < 4; i++) {
     try {
@@ -55,7 +65,7 @@ export default function LoginClient() {
   }, []);
 
   if (user) {
-    router.replace(nextPath || (user.role === "admin" ? "/admin" : "/account"));
+    router.replace(resolvePostLoginPath(user.role, nextPath));
     return null;
   }
 
@@ -72,8 +82,16 @@ export default function LoginClient() {
         await wakeApi();
       }
       if (mode === "login") {
-        const loggedIn = await login(String(fd.get("email")), String(fd.get("password")));
-        router.push(nextPath || (loggedIn.role === "admin" ? "/admin" : "/account"));
+        const loggedIn = await login(
+          String(fd.get("email")),
+          String(fd.get("password")),
+          "customer"
+        );
+        if (!isCustomer(loggedIn.role)) {
+          setError("Customer accounts only on this page.");
+          return;
+        }
+        router.push(resolvePostLoginPath(loggedIn.role, nextPath));
       } else {
         await register(
           String(fd.get("email")),
@@ -84,11 +102,17 @@ export default function LoginClient() {
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Authentication failed";
-      setError(
-        /reach|503|502|504|network|waking|timeout/i.test(msg)
-          ? `${msg} — on slow networks wait 30–60s and try Sign In again.`
-          : msg
-      );
+      if (/USE_ADMIN_LOGIN|Owners must/i.test(msg)) {
+        setError("Owners: use the Admin login at /admin/login");
+      } else if (/USE_RECEPTION_LOGIN|Reception staff must/i.test(msg)) {
+        setError("Reception staff: use /reception/login");
+      } else {
+        setError(
+          /reach|503|502|504|network|waking|timeout/i.test(msg)
+            ? `${msg} — on slow networks wait 30–60s and try Sign In again.`
+            : msg
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -101,11 +125,11 @@ export default function LoginClient() {
           <BrandLogo href="/" size="sm" wordmarkClassName="" />
         </div>
         <h1 className="text-2xl font-black tracking-tight mb-2 text-center">
-          {mode === "login" ? "Sign In" : "Create Account"}
+          {mode === "login" ? "Customer sign in" : "Create account"}
         </h1>
         <p className="text-sm text-soul-muted mb-6 text-center">
           {mode === "login"
-            ? "Welcome back to THE CLOVER."
+            ? "Shop, bag, and track your orders."
             : "Join THE CLOVER to shop and track orders."}
         </p>
 
@@ -160,9 +184,15 @@ export default function LoginClient() {
           {mode === "login" ? "Need an account? Register" : "Already have an account? Sign in"}
         </button>
 
-        <p className="mt-6 text-center text-xs text-soul-muted">
-          <Link href="/" className="hover:text-black">
+        <p className="mt-6 text-center text-xs text-soul-muted space-y-2">
+          <Link href="/" className="hover:text-black block">
             ← Back to shop
+          </Link>
+          <Link href="/admin/login" className="hover:text-black block">
+            Owner admin login
+          </Link>
+          <Link href="/reception/login" className="hover:text-black block">
+            Reception / floor login
           </Link>
         </p>
       </GlassCard>

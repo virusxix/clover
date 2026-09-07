@@ -148,6 +148,13 @@ export function PosTerminal() {
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
   const [picker, setPicker] = useState<PickerState | null>(null);
   const [paperMm, setPaperMm] = useState<PaperWidthMm>(80);
+  const [customers, setCustomers] = useState<
+    { id: string; name: string; phone?: string | null; segment: string }[]
+  >([]);
+  const [customerId, setCustomerId] = useState("");
+  const [customerQ, setCustomerQ] = useState("");
+  const [quickCustomerName, setQuickCustomerName] = useState("");
+  const [quickCustomerPhone, setQuickCustomerPhone] = useState("");
 
   useEffect(() => {
     setPaperMm(loadPaperWidth());
@@ -165,6 +172,20 @@ export function PosTerminal() {
     );
   }, [styles, q]);
 
+  const customerOptions = useMemo(() => {
+    const needle = customerQ.trim().toLowerCase();
+    if (!needle) return customers.slice(0, 40);
+    return customers
+      .filter(
+        (c) =>
+          c.name.toLowerCase().includes(needle) ||
+          (c.phone || "").includes(needle)
+      )
+      .slice(0, 40);
+  }, [customers, customerQ]);
+
+  const selectedCustomer = customers.find((c) => c.id === customerId) || null;
+
   const cartGross = cart.reduce((s, l) => s + l.unitPrice * l.quantity, 0);
   const cartItemDiscount = cart.reduce((s, l) => {
     const max = l.unitPrice * l.quantity;
@@ -180,10 +201,14 @@ export function PosTerminal() {
     Promise.all([
       api<{ items: StockItem[] }>("/api/admin/ops/inventory?location=store"),
       api<{ sales: SaleRow[] }>("/api/admin/ops/store-sales"),
+      api<{ customers: { id: string; name: string; phone?: string | null; segment: string }[] }>(
+        "/api/admin/ops/customers"
+      ).catch(() => ({ customers: [] })),
     ])
-      .then(([inv, s]) => {
+      .then(([inv, s, c]) => {
         setStock(inv.items);
         setSales(s.sales);
+        setCustomers(c.customers || []);
         setError("");
       })
       .catch((e) => setError(e instanceof Error ? e.message : "Failed to load POS"));
@@ -274,6 +299,33 @@ export function PosTerminal() {
     setNotes("");
     setDiscountInput("");
     setPaymentMethod("cash");
+    setCustomerId("");
+    setCustomerQ("");
+    setQuickCustomerName("");
+    setQuickCustomerPhone("");
+  };
+
+  const ensureCustomerId = async (): Promise<string | null> => {
+    if (customerId) return customerId;
+    const nm = quickCustomerName.trim();
+    const ph = quickCustomerPhone.trim();
+    if (!nm && !ph) return null;
+    const res = await api<{ customer: { id: string; name: string; phone?: string | null; segment: string } }>(
+      "/api/admin/ops/customers",
+      {
+        method: "POST",
+        json: {
+          name: nm || ph,
+          phone: ph || null,
+          segment: "new",
+        },
+      }
+    );
+    setCustomers((prev) => [res.customer, ...prev.filter((c) => c.id !== res.customer.id)]);
+    setCustomerId(res.customer.id);
+    setQuickCustomerName("");
+    setQuickCustomerPhone("");
+    return res.customer.id;
   };
 
   const checkout = async () => {
@@ -288,12 +340,17 @@ export function PosTerminal() {
     setSaving(true);
     setError("");
     try {
+      const cid = await ensureCustomerId();
+      const cust = cid
+        ? customers.find((c) => c.id === cid) || selectedCustomer
+        : null;
       const res = await api<ReceiptData>("/api/admin/ops/store-sales", {
         method: "POST",
         json: {
           paymentMethod,
           notes: notes.trim() || undefined,
           discount: orderDiscountAmt,
+          customerId: cid || undefined,
           items: cart.map((l) => ({
             variantId: l.variantId,
             size: l.size,
@@ -303,11 +360,22 @@ export function PosTerminal() {
           })),
         },
       });
-      setReceipt(res);
+      setReceipt({
+        ...res,
+        customerName: cust?.name || res.customerName,
+        customerPhone: cust?.phone || res.customerPhone,
+      });
       clearCart();
       load();
-      // Any PC with USB / Bluetooth / network printer → OS print dialog
-      printReceipt(res, paperMm, "store");
+      printReceipt(
+        {
+          ...res,
+          customerName: cust?.name || res.customerName,
+          customerPhone: cust?.phone || res.customerPhone,
+        },
+        paperMm,
+        "store"
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Checkout failed");
     } finally {
@@ -378,9 +446,9 @@ export function PosTerminal() {
         </p>
       )}
 
-      <div className="grid xl:grid-cols-[1.4fr_1fr] gap-4 lg:gap-6">
+      <div className="grid xl:grid-cols-[1.35fr_1fr] gap-4 lg:gap-6">
         {/* Catalog */}
-        <GlassCard className="p-4 sm:p-5 min-h-[420px]">
+        <GlassCard className="p-4 sm:p-5 min-h-[360px]">
           <div className="flex flex-col sm:flex-row gap-3 sm:items-center mb-4">
             <p className="text-xs font-bold tracking-widest uppercase shrink-0">Products</p>
             <input
@@ -396,7 +464,7 @@ export function PosTerminal() {
               No store stock. Receive inventory into Store first.
             </p>
           ) : (
-            <div className="grid sm:grid-cols-2 gap-3 max-h-[min(70vh,640px)] overflow-y-auto pr-1">
+            <div className="grid sm:grid-cols-2 gap-3 max-h-[min(55vh,520px)] overflow-y-auto pr-1">
               {filtered.map((p) => (
                 <button
                   key={p.productKey}
@@ -422,24 +490,29 @@ export function PosTerminal() {
           )}
         </GlassCard>
 
-        {/* Cart */}
-        <GlassCard className="p-4 sm:p-5 flex flex-col min-h-[420px]">
+        {/* Cart lines only */}
+        <GlassCard className="p-4 sm:p-5 flex flex-col min-h-[360px]">
           <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-bold tracking-widest uppercase">Cart</p>
+            <div>
+              <p className="text-xs font-bold tracking-widest uppercase">Cart</p>
+              <p className="text-[11px] text-soul-muted mt-0.5">
+                {cartUnits} {cartUnits === 1 ? "item" : "items"}
+              </p>
+            </div>
             {cart.length > 0 && (
               <button
                 type="button"
                 onClick={clearCart}
-                className="text-[10px] font-bold tracking-widest uppercase text-soul-muted hover:text-black"
+                className="text-[10px] font-bold tracking-widest uppercase text-soul-muted hover:text-black min-h-[40px] px-2"
               >
                 Clear
               </button>
             )}
           </div>
 
-          <div className="flex-1 space-y-2 overflow-y-auto max-h-[min(50vh,420px)]">
+          <div className="flex-1 space-y-3 overflow-y-auto max-h-[min(55vh,520px)] pr-0.5">
             {cart.length === 0 && (
-              <p className="text-sm text-soul-muted py-8 text-center">
+              <p className="text-sm text-soul-muted py-12 text-center">
                 Tap a product to add it
               </p>
             )}
@@ -450,29 +523,33 @@ export function PosTerminal() {
               return (
                 <div
                   key={line.key}
-                  className="rounded-xl bg-white/60 border border-black/5 p-3 flex flex-col gap-2"
+                  className="rounded-2xl bg-white/70 border border-black/5 p-4 flex flex-col gap-3"
                 >
                   <div className="flex gap-3 items-start">
                     <div className="min-w-0 flex-1">
                       <p className="font-semibold text-sm leading-snug">{line.productName}</p>
-                      <p className="text-[11px] text-soul-muted">
-                        {[line.productCode, line.colorName, `Sz ${line.size}`].filter(Boolean).join(" · ")}
+                      <p className="text-[11px] text-soul-muted mt-1">
+                        {[line.productCode, line.colorName, `Sz ${line.size}`]
+                          .filter(Boolean)
+                          .join(" · ")}
                       </p>
-                      <p className="text-xs mt-1">{formatMMK(line.unitPrice)} each</p>
+                      <p className="text-xs mt-1.5">{formatMMK(line.unitPrice)} each</p>
                     </div>
-                    <div className="flex items-center gap-1 shrink-0">
+                    <div className="flex items-center gap-1.5 shrink-0">
                       <button
                         type="button"
-                        className="w-9 h-9 rounded-full glass text-lg leading-none"
+                        className="w-10 h-10 rounded-full glass text-lg leading-none"
                         onClick={() => setQty(line.key, line.quantity - 1)}
                         aria-label="Decrease"
                       >
                         −
                       </button>
-                      <span className="w-8 text-center font-semibold text-sm">{line.quantity}</span>
+                      <span className="w-8 text-center font-bold text-sm tabular-nums">
+                        {line.quantity}
+                      </span>
                       <button
                         type="button"
-                        className="w-9 h-9 rounded-full glass text-lg leading-none"
+                        className="w-10 h-10 rounded-full glass text-lg leading-none"
                         onClick={() => setQty(line.key, line.quantity + 1)}
                         aria-label="Increase"
                         disabled={line.quantity >= line.maxQty}
@@ -481,10 +558,10 @@ export function PosTerminal() {
                       </button>
                     </div>
                   </div>
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between border-t border-black/5 pt-2">
-                    <label className="flex items-center gap-2 min-w-0 flex-1">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-soul-muted shrink-0">
-                        Disc.
+                  <div className="flex flex-col gap-2 border-t border-black/5 pt-3">
+                    <label className="flex flex-col gap-1.5">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-soul-muted">
+                        Line discount (Ks)
                       </span>
                       <input
                         type="number"
@@ -496,10 +573,10 @@ export function PosTerminal() {
                         onChange={(e) => setLineDiscount(line.key, e.target.value)}
                         placeholder="0"
                         aria-label={`Discount for ${line.productName}`}
-                        className="w-full max-w-[9rem] px-2.5 py-2 rounded-lg border border-black/10 bg-white text-base tabular-nums min-h-[40px]"
+                        className="w-full px-3 py-2.5 rounded-xl border border-black/10 bg-white text-base tabular-nums min-h-[44px]"
                       />
                     </label>
-                    <p className="text-sm font-bold tabular-nums shrink-0 text-right">
+                    <p className="text-sm font-bold tabular-nums text-right">
                       {lineDisc > 0 ? (
                         <>
                           <span className="text-soul-muted font-medium line-through mr-2 text-xs">
@@ -516,8 +593,66 @@ export function PosTerminal() {
               );
             })}
           </div>
+        </GlassCard>
+      </div>
 
-          <div className="border-t border-black/10 pt-4 mt-4 space-y-3">
+      {/* Checkout panel — separate from cart lines */}
+      <GlassCard className="p-4 sm:p-6">
+        <p className="text-xs font-bold tracking-widest uppercase mb-4">Checkout</p>
+        <div className="grid lg:grid-cols-3 gap-6">
+          <div className="space-y-3">
+            <p className="text-[10px] font-bold tracking-widest uppercase text-soul-muted">
+              Customer
+            </p>
+            <input
+              value={customerQ}
+              onChange={(e) => setCustomerQ(e.target.value)}
+              placeholder="Search saved customers…"
+              className="w-full px-3 py-2.5 rounded-xl border border-black/10 bg-white/70 text-sm min-h-[44px]"
+            />
+            <select
+              value={customerId}
+              onChange={(e) => setCustomerId(e.target.value)}
+              className="w-full px-3 py-2.5 rounded-xl border border-black/10 bg-white/70 text-sm min-h-[44px]"
+              aria-label="Select customer"
+            >
+              <option value="">Walk-in (no CRM link)</option>
+              {customerOptions.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                  {c.phone ? ` · ${c.phone}` : ""} · {c.segment}
+                </option>
+              ))}
+            </select>
+            {!customerId && (
+              <div className="grid grid-cols-1 gap-2 pt-1">
+                <p className="text-[10px] text-soul-muted">Or quick-add as new customer:</p>
+                <input
+                  value={quickCustomerName}
+                  onChange={(e) => setQuickCustomerName(e.target.value)}
+                  placeholder="Name"
+                  className="w-full px-3 py-2.5 rounded-xl border border-black/10 bg-white/70 text-sm min-h-[44px]"
+                />
+                <input
+                  value={quickCustomerPhone}
+                  onChange={(e) => setQuickCustomerPhone(e.target.value)}
+                  placeholder="Phone"
+                  className="w-full px-3 py-2.5 rounded-xl border border-black/10 bg-white/70 text-sm min-h-[44px]"
+                />
+              </div>
+            )}
+            {selectedCustomer && (
+              <p className="text-xs text-soul-muted">
+                Linked: <span className="font-semibold text-black">{selectedCustomer.name}</span> (
+                {selectedCustomer.segment})
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-3">
+            <p className="text-[10px] font-bold tracking-widest uppercase text-soul-muted">
+              Payment & notes
+            </p>
             <div className="flex gap-2 flex-wrap">
               {POS_PAYMENT_METHODS.map((m) => (
                 <button
@@ -559,10 +694,18 @@ export function PosTerminal() {
                 className="w-full px-3 py-2.5 rounded-xl border border-black/10 bg-white/70 text-base min-h-[44px] tabular-nums disabled:opacity-50"
               />
               {discountParsed > afterItems && afterItems >= 0 && cart.length > 0 && (
-                <p className="text-[11px] text-red-600 mt-1">Max order discount is {formatMMK(afterItems)}</p>
+                <p className="text-[11px] text-red-600 mt-1">
+                  Max order discount is {formatMMK(afterItems)}
+                </p>
               )}
             </div>
-            <div className="space-y-1">
+          </div>
+
+          <div className="space-y-3 flex flex-col">
+            <p className="text-[10px] font-bold tracking-widest uppercase text-soul-muted">
+              Total
+            </p>
+            <div className="space-y-1.5 flex-1">
               <div className="flex justify-between items-baseline text-sm">
                 <span className="text-soul-muted">
                   Subtotal · {cartUnits} {cartUnits === 1 ? "item" : "items"}
@@ -572,31 +715,37 @@ export function PosTerminal() {
               {cartItemDiscount > 0 && (
                 <div className="flex justify-between items-baseline text-sm">
                   <span className="text-soul-muted">Item discounts</span>
-                  <span className="tabular-nums font-medium text-soul-sale">−{formatMMK(cartItemDiscount)}</span>
+                  <span className="tabular-nums font-medium text-soul-sale">
+                    −{formatMMK(cartItemDiscount)}
+                  </span>
                 </div>
               )}
               {orderDiscountAmt > 0 && (
                 <div className="flex justify-between items-baseline text-sm">
                   <span className="text-soul-muted">Order discount</span>
-                  <span className="tabular-nums font-medium text-soul-sale">−{formatMMK(orderDiscountAmt)}</span>
+                  <span className="tabular-nums font-medium text-soul-sale">
+                    −{formatMMK(orderDiscountAmt)}
+                  </span>
                 </div>
               )}
-              <div className="flex justify-between items-baseline pt-1 border-t border-black/10">
-                <span className="text-xs text-soul-muted uppercase tracking-wider">Total</span>
-                <span className="text-2xl font-black tracking-tight tabular-nums">{formatMMK(cartTotal)}</span>
+              <div className="flex justify-between items-baseline pt-2 border-t border-black/10">
+                <span className="text-xs text-soul-muted uppercase tracking-wider">Due</span>
+                <span className="text-3xl font-black tracking-tight tabular-nums">
+                  {formatMMK(cartTotal)}
+                </span>
               </div>
             </div>
             <button
               type="button"
               onClick={checkout}
               disabled={saving || cart.length === 0 || discountParsed > afterItems}
-              className="btn-soul--dark rounded-full w-full min-h-[52px] text-xs disabled:opacity-50"
+              className="btn-soul--dark rounded-full w-full min-h-[56px] text-xs disabled:opacity-50 mt-auto"
             >
-              {saving ? "Processing…" : "Charge & print ready"}
+              {saving ? "Processing…" : "Charge & print"}
             </button>
           </div>
-        </GlassCard>
-      </div>
+        </div>
+      </GlassCard>
 
       {/* Recent sales */}
       <GlassCard className="p-4 sm:p-5 overflow-x-auto">

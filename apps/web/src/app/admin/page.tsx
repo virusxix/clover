@@ -16,11 +16,13 @@ import { AdminStoreTab } from "@/components/admin/AdminStoreTab";
 import { AdminIconicTab } from "@/components/admin/AdminIconicTab";
 import { AdminOrdersTab, type AdminOrder } from "@/components/admin/AdminOrdersTab";
 import { AdminUsersTab, type AdminUser } from "@/components/admin/AdminUsersTab";
+import { AdminCustomersTab } from "@/components/admin/AdminCustomersTab";
 import { ReceptionOrderAlerts } from "@/components/admin/ReceptionOrderAlerts";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { api } from "@/lib/api";
 import { formatMMK } from "@/lib/currency";
 import { useAuth } from "@/lib/auth-context";
+import { isAdmin, isReception } from "@/lib/roles";
 
 type Tab =
   | "dashboard"
@@ -30,6 +32,7 @@ type Tab =
   | "iconic"
   | "products"
   | "orders"
+  | "customers"
   | "users";
 
 type Dashboard = {
@@ -47,6 +50,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "iconic", label: "ICONIC" },
   { id: "products", label: "Products" },
   { id: "orders", label: "Orders" },
+  { id: "customers", label: "Customers" },
   { id: "users", label: "Users" },
 ];
 
@@ -62,7 +66,18 @@ export default function AdminPage() {
   const [pendingOrderCount, setPendingOrderCount] = useState(0);
 
   useEffect(() => {
-    if (!loading && (!user || user.role !== "admin")) router.push("/login");
+    if (loading) return;
+    if (!user) {
+      router.push("/admin/login");
+      return;
+    }
+    if (isReception(user.role)) {
+      router.replace("/reception");
+      return;
+    }
+    if (!isAdmin(user.role)) {
+      router.push("/login");
+    }
   }, [user, loading, router]);
 
   const loadSettings = () => {
@@ -96,7 +111,7 @@ export default function AdminPage() {
   };
 
   useEffect(() => {
-    if (user?.role !== "admin") return;
+    if (!isAdmin(user?.role)) return;
     loadSettings();
     if (tab === "dashboard") {
       api<Dashboard>("/api/admin/dashboard").then(setDash).catch(() => setDash(null));
@@ -108,7 +123,7 @@ export default function AdminPage() {
 
   // Always poll pending count so the Orders tab badge stays accurate on any tab
   useEffect(() => {
-    if (user?.role !== "admin") return;
+    if (!isAdmin(user?.role)) return;
     loadPendingCount();
     const id = window.setInterval(loadPendingCount, 10000);
     return () => window.clearInterval(id);
@@ -116,7 +131,7 @@ export default function AdminPage() {
 
   // Refresh orders list while the Orders tab is open
   useEffect(() => {
-    if (user?.role !== "admin" || tab !== "orders") return;
+    if (!isAdmin(user?.role) || tab !== "orders") return;
     const id = window.setInterval(loadOrders, 10000);
     return () => window.clearInterval(id);
   }, [tab, user]);
@@ -127,13 +142,64 @@ export default function AdminPage() {
     loadPendingCount();
   };
 
-  if (loading || !user || user.role !== "admin") return null;
+  const updatePayment = async (orderId: string, received: boolean) => {
+    const res = await api<{
+      order: {
+        id: string;
+        status: string;
+        paymentReceived: boolean;
+        paymentReceivedAt: string | null;
+      };
+    }>(`/api/admin/orders/${orderId}/payment`, {
+      method: "PATCH",
+      json: { received },
+    });
+    setOrders((prev) =>
+      prev.map((o) =>
+        o.id === orderId
+          ? {
+              ...o,
+              status: res.order.status || o.status,
+              payment_received: res.order.paymentReceived,
+              payment_received_at: res.order.paymentReceivedAt,
+            }
+          : o
+      )
+    );
+    loadPendingCount();
+  };
+
+  const updateUserRole = async (userId: string, role: string, confirmPassword?: string) => {
+    const res = await api<{ user: AdminUser }>(`/api/admin/users/${userId}/role`, {
+      method: "PATCH",
+      json: { role, ...(confirmPassword ? { confirmPassword } : {}) },
+    });
+    setUsers((prev) =>
+      prev.map((u) => (u.id === userId ? { ...u, role: res.user?.role || role } : u))
+    );
+  };
+
+  if (loading || !user || !isAdmin(user.role)) return null;
 
   return (
     <div className="max-w-6xl mx-auto px-3 sm:px-6 py-6 sm:py-10 pb-16">
-      <h1 className="text-xl sm:text-3xl font-black tracking-tight mb-4 sm:mb-6">
-        THE CLOVER · Admin
-      </h1>
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-4 sm:mb-6">
+        <div>
+          <p className="text-[10px] font-bold tracking-widest uppercase text-soul-muted mb-1">
+            Owner console
+          </p>
+          <h1 className="text-xl sm:text-3xl font-black tracking-tight">THE CLOVER · Admin</h1>
+          <p className="text-sm text-soul-muted mt-1">
+            Profit, users, catalog, analytics — floor staff use Reception instead
+          </p>
+        </div>
+        <a
+          href="/reception"
+          className="text-xs font-bold tracking-widest uppercase hover:opacity-60 min-h-[44px] inline-flex items-center"
+        >
+          Open floor / POS →
+        </a>
+      </div>
 
       <ReceptionOrderAlerts />
 
@@ -218,10 +284,17 @@ export default function AdminPage() {
       )}
 
       {tab === "orders" && (
-        <AdminOrdersTab orders={orders} onStatusChange={updateStatus} />
+        <AdminOrdersTab
+          orders={orders}
+          onStatusChange={updateStatus}
+          onPaymentChange={updatePayment}
+          onOrdersRefresh={loadOrders}
+        />
       )}
 
-      {tab === "users" && <AdminUsersTab users={users} />}
+      {tab === "customers" && <AdminCustomersTab />}
+
+      {tab === "users" && <AdminUsersTab users={users} onRoleChange={updateUserRole} />}
     </div>
   );
 }

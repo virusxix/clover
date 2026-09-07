@@ -116,7 +116,7 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
   if (isAuthSession && lastContentType?.includes("application/json") && lastBody) {
     try {
       const data = JSON.parse(new TextDecoder().decode(lastBody)) as {
-        user?: unknown;
+        user?: { role?: string };
         ok?: boolean;
         accessToken?: string;
         refreshToken?: string;
@@ -127,7 +127,7 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
         subpath === "auth/refresh"
           ? data.error
             ? { error: data.error }
-            : { ok: true }
+            : { ok: true, user: data.user || undefined }
           : data.user
             ? { user: data.user }
             : data.error
@@ -137,21 +137,30 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
       const res = NextResponse.json(payload, { status: lastStatus, headers: out });
 
       const secure = process.env.NODE_ENV === "production";
+      const cookieBase = {
+        httpOnly: true,
+        secure,
+        sameSite: "lax" as const,
+        path: "/",
+      };
+
       if (data.accessToken && lastCookies.length === 0) {
         res.cookies.set("accessToken", data.accessToken, {
-          httpOnly: true,
-          secure,
-          sameSite: "lax",
-          path: "/",
+          ...cookieBase,
           maxAge: 60 * 15,
         });
       }
       if (data.refreshToken && lastCookies.length === 0) {
         res.cookies.set("refreshToken", data.refreshToken, {
-          httpOnly: true,
-          secure,
-          sameSite: "lax",
-          path: "/",
+          ...cookieBase,
+          maxAge: 60 * 60 * 24 * 7,
+        });
+      }
+      // Always sync role gate cookie from live user when present (login / register / refresh).
+      const role = data.user?.role;
+      if (role === "admin" || role === "reception" || role === "customer") {
+        res.cookies.set("cloverRole", role, {
+          ...cookieBase,
           maxAge: 60 * 60 * 24 * 7,
         });
       }
@@ -165,6 +174,7 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
     }
   }
 
+  // /auth/me sets cloverRole via upstream Set-Cookie — already forwarded above.
   return new NextResponse(lastBody, { status: lastStatus, headers: out });
 }
 

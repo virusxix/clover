@@ -25,7 +25,7 @@ export async function createSession(res, user) {
   const refreshToken = signRefreshToken(user);
 
   await saveRefreshOrFailInProd(user.id, refreshToken);
-  setAuthCookies(res, accessToken, refreshToken);
+  setAuthCookies(res, accessToken, refreshToken, user.role);
 
   // Tokens included so the Vercel proxy can set cookies if Set-Cookie is stripped.
   // Browser-facing proxy responses should omit these fields.
@@ -58,9 +58,9 @@ export async function rotateSession(res, refreshToken) {
   const accessToken = signAccessToken(user);
   const newRefresh = signRefreshToken(user);
   await storeRefreshToken(user.id, newRefresh);
-  setAuthCookies(res, accessToken, newRefresh);
+  setAuthCookies(res, accessToken, newRefresh, user.role);
 
-  return { accessToken, refreshToken: newRefresh };
+  return { accessToken, refreshToken: newRefresh, user: toUserResponse(user) };
 }
 
 /**

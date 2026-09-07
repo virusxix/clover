@@ -54,13 +54,16 @@ export async function updateOrderStatus(orderId, nextStatus, opts = {}) {
     }
 
     // Offline payment confirmed → commit website stock, then move forward.
+    // Skip if money was already marked received (stock committed then).
     if (prev === "awaiting_payment" && nextStatus !== "cancelled") {
       if (!["pending", "processing"].includes(nextStatus)) {
         const err = new Error("Confirm payment before shipping");
         err.status = 400;
         throw err;
       }
-      await commitWebsiteStockForOrder(client, orderId, opts.adminUserId || null);
+      if (!order.payment_received_at) {
+        await commitWebsiteStockForOrder(client, orderId, opts.adminUserId || null);
+      }
     }
 
     // Cancel releases reserved/sold website stock when it was held.

@@ -47,9 +47,11 @@ const nextConfig = {
           "img-src 'self' data: blob: https:",
           "font-src 'self' data: https://fonts.gstatic.com",
           "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-          // Next.js needs inline/eval in some builds; tighten further when moving off Google Fonts CDN.
-          "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-          `connect-src 'self' ${rawApi || "http://localhost:4000"} https:`,
+          // Next.js needs some inline scripts; avoid unsafe-eval in production builds when possible.
+          isProd
+            ? "script-src 'self' 'unsafe-inline'"
+            : "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+          `connect-src 'self' ${rawApi || "http://localhost:4000"}`,
           "upgrade-insecure-requests",
         ].join("; "),
       },
